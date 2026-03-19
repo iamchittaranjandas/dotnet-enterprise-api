@@ -518,7 +518,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Chittaranjan Das**
 - GitHub: [@iamchittaranjandas](https://github.com/iamchittaranjandas)
-- LinkedIn: [Your Profile](https://linkedin.com/in/yourprofile)
+- LinkedIn: [iamchittaranjandas](https://www.linkedin.com/in/iamchittaranjandas)
 
 ---
 
