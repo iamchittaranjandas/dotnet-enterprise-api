@@ -44,6 +44,7 @@ namespace DotnetEnterpriseApi.Infrastructure
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<ITaskRepository, EfTaskRepository>();
             services.AddScoped<IUserRepository, EfUserRepository>();
+            services.AddScoped<IRefreshTokenRepository, EfRefreshTokenRepository>();
         }
 
         private static void AddDapperInfrastructure(this IServiceCollection services)
@@ -52,6 +53,7 @@ namespace DotnetEnterpriseApi.Infrastructure
             services.AddScoped<IUnitOfWork, DapperUnitOfWork>();
             services.AddScoped<ITaskRepository, DapperTaskRepository>();
             services.AddScoped<IUserRepository, DapperUserRepository>();
+            services.AddScoped<IRefreshTokenRepository, DapperRefreshTokenRepository>();
         }
 
         private static void AddAdoInfrastructure(this IServiceCollection services)
@@ -60,6 +62,7 @@ namespace DotnetEnterpriseApi.Infrastructure
             services.AddScoped<IUnitOfWork, DapperUnitOfWork>();
             services.AddScoped<ITaskRepository, AdoTaskRepository>();
             services.AddScoped<IUserRepository, AdoUserRepository>();
+            services.AddScoped<IRefreshTokenRepository, AdoRefreshTokenRepository>();
         }
     }
 }

@@ -14,6 +14,14 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
             _connectionFactory = connectionFactory;
         }
 
+        public async Task<AppUser?> GetByIdAsync(int id)
+        {
+            const string sql = "SELECT Id, UserName, Email, PasswordHash, Role FROM Users WHERE Id = @Id";
+
+            using var connection = _connectionFactory.CreateConnection();
+            return await connection.QueryFirstOrDefaultAsync<AppUser>(sql, new { Id = id });
+        }
+
         public async Task<bool> UserExistsAsync(string email)
         {
             const string sql = "SELECT COUNT(1) FROM Users WHERE Email = @Email";

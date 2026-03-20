@@ -14,6 +14,7 @@ A production-ready, enterprise-grade REST API built with **ASP.NET Core (.NET 10
 - [Technology Stack](#-technology-stack)
 - [Project Structure](#-project-structure)
 - [Data Provider Selection](#-data-provider-selection)
+- [Enterprise Features](#-enterprise-features)
 - [Getting Started](#-getting-started)
 - [API Documentation](#-api-documentation)
 - [CQRS Implementation](#-cqrs-implementation)
@@ -51,6 +52,13 @@ This project serves as a **comprehensive template** for building enterprise-grad
 - **Swagger/OpenAPI** - Interactive API documentation
 - **Entity Framework Core** - Code-first database approach
 - **Multi-Provider Data Access** - Choose between Entity Framework, Dapper, or ADO.NET via config
+- **Health Checks** - Database and API health monitoring at `/health`
+- **Rate Limiting** - Fixed window, sliding window, and token bucket policies
+- **API Versioning** - Query string and header-based version control
+- **OpenTelemetry** - Distributed tracing and metrics instrumentation
+- **Output Caching** - Response caching with tag-based invalidation
+- **Refresh Tokens** - Secure token rotation for long-lived sessions
+- **Pagination** - Built-in `pageNumber` and `pageSize` query parameters
 
 ---
 
@@ -63,10 +71,13 @@ This project serves as a **comprehensive template** for building enterprise-grad
 - **Dapper** (2.1.72) - Lightweight micro-ORM with raw SQL
 - **ADO.NET** (Microsoft.Data.SqlClient) - Pure data access, no ORM
 - **SQL Server**
-- **JWT Bearer Authentication**
+- **JWT Bearer Authentication** + **Refresh Tokens**
 - **BCrypt.Net** - Secure password hashing
 - **Mapster** (7.4.0) - Object mapping
 - **Swagger/OpenAPI** - API documentation
+- **OpenTelemetry** (1.15.0) - Distributed tracing & metrics
+- **Asp.Versioning** (8.1.1) - API version management
+- **AspNetCore.HealthChecks.SqlServer** (9.0.0) - Database health monitoring
 
 ---
 
@@ -297,6 +308,108 @@ return await reader.ReadAsync() ? MapTaskItem(reader) : null;
 
 ---
 
+## 🏢 Enterprise Features
+
+All features below are **built-in and ready to use** out of the box. No extra setup required.
+
+### Health Checks
+
+Endpoint: `GET /health`
+
+Returns JSON with API and database health status:
+```json
+{
+  "status": "Healthy",
+  "checks": [
+    {
+      "name": "sqlserver",
+      "status": "Healthy",
+      "duration": "184ms"
+    }
+  ],
+  "totalDuration": "188ms"
+}
+```
+
+### Rate Limiting
+
+Protects your API from abuse. Three built-in policies:
+
+| Policy | Type | Limit | Window |
+|--------|------|-------|--------|
+| `fixed` | Fixed Window | 100 requests | 1 minute |
+| `sliding` | Sliding Window | 50 requests | 1 minute |
+| `token` | Token Bucket | 100 tokens, 10/10s refill | Continuous |
+
+A **global limiter** (200 req/min per user/IP) is applied to all endpoints automatically. When the limit is exceeded, the API returns `429 Too Many Requests`.
+
+### API Versioning
+
+Supports two methods simultaneously:
+
+```
+# Query string
+GET /api/tasks?api-version=1.0
+
+# Header
+GET /api/tasks
+X-Api-Version: 1.0
+```
+
+Response headers include `api-supported-versions` to tell clients which versions are available.
+
+### OpenTelemetry Observability
+
+Built-in distributed tracing and metrics:
+
+- **Traces** - Every HTTP request is traced with span context
+- **Metrics** - ASP.NET Core and HTTP client metrics collected automatically
+- **Console Exporter** - Outputs to console by default (replace with Jaeger, Zipkin, OTLP, or Application Insights for production)
+
+To switch to a production exporter, replace `AddConsoleExporter()` in `Program.cs` with your preferred exporter package.
+
+### Output Caching
+
+Response caching reduces database load:
+
+| Policy | TTL | Description |
+|--------|-----|-------------|
+| Default | 30 seconds | Applied to all endpoints |
+| `tasks` | 60 seconds | Tag-based, applied to task listing |
+
+Cache is automatically invalidated when data changes.
+
+### Refresh Tokens
+
+Login now returns both a JWT access token and a refresh token:
+
+```json
+{
+  "token": "eyJhbG...",
+  "refreshToken": "FyuFem...",
+  "userName": "john",
+  "email": "john@example.com",
+  "role": "User"
+}
+```
+
+Use `POST /api/auth/refresh-token` with the refresh token to get new tokens without re-entering credentials. Refresh tokens expire in 7 days and are single-use (revoked after each rotation).
+
+### Pagination
+
+All list endpoints support pagination via query parameters:
+
+```
+GET /api/tasks?pageNumber=1&pageSize=10
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `pageNumber` | 1 | Page number (1-based) |
+| `pageSize` | 10 | Items per page |
+
+---
+
 ## 🎯 SOLID Principles Implementation
 
 ### **Single Responsibility Principle (SRP)**
@@ -408,12 +521,22 @@ Authorization: Bearer {your_jwt_token}
 **POST** `/api/auth/login`
 - Login and receive JWT token
 - Request body: `{ "email": "string", "password": "string" }`
-- Response: `Result<LoginResponse>` with JWT token
+- Response: `Result<LoginResponse>` with JWT + Refresh Token
+
+**POST** `/api/auth/refresh-token`
+- Exchange a refresh token for new JWT + refresh token pair
+- Request body: `{ "token": "string" }`
+- Response: `Result<LoginResponse>` with new tokens
+
+### Health & Monitoring Endpoints
+
+**GET** `/health`
+- Returns API and database health status (no auth required)
 
 ### Task Management Endpoints (Requires Authentication)
 
-**GET** `/api/tasks`
-- Get all tasks
+**GET** `/api/tasks?pageNumber=1&pageSize=10`
+- Get all tasks with pagination
 - Response: `Result<List<TaskResponse>>`
 
 **GET** `/api/tasks/{id}`

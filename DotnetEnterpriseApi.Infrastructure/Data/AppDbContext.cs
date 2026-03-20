@@ -23,6 +23,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Data
 
         public DbSet<TaskItem> Tasks { get; set; }
         public DbSet<AppUser> Users { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

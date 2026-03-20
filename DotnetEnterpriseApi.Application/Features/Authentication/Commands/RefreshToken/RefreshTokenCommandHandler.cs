@@ -1,4 +1,5 @@
 using DotnetEnterpriseApi.Application.Common.Models;
+using DotnetEnterpriseApi.Application.Features.Authentication.Commands.Login;
 using DotnetEnterpriseApi.Application.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Configuration;
@@ -8,44 +9,51 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Login
+namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.RefreshToken
 {
-    public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<LoginResponse>>
+    public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, Result<LoginResponse>>
     {
-        private readonly IUserRepository _userRepository;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
+        private readonly IUserRepository _userRepository;
         private readonly IConfiguration _configuration;
 
-        public LoginCommandHandler(
-            IUserRepository userRepository,
+        public RefreshTokenCommandHandler(
             IRefreshTokenRepository refreshTokenRepository,
+            IUserRepository userRepository,
             IConfiguration configuration)
         {
-            _userRepository = userRepository;
             _refreshTokenRepository = refreshTokenRepository;
+            _userRepository = userRepository;
             _configuration = configuration;
         }
 
-        public async Task<Result<LoginResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
+        public async Task<Result<LoginResponse>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
         {
-            var user = await _userRepository.GetByEmailAsync(request.Email);
+            var existingToken = await _refreshTokenRepository.GetByTokenAsync(request.Token);
+
+            if (existingToken == null || !existingToken.IsActive)
+            {
+                return Result<LoginResponse>.Failure("Invalid or expired refresh token");
+            }
+
+            // Revoke the old refresh token
+            await _refreshTokenRepository.RevokeAsync(request.Token);
+
+            // Get the user
+            var user = await _userRepository.GetByIdAsync(existingToken.UserId);
 
             if (user == null)
             {
-                return Result<LoginResponse>.Failure("Invalid email or password");
+                return Result<LoginResponse>.Failure("User not found");
             }
 
-            if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            {
-                return Result<LoginResponse>.Failure("Invalid email or password");
-            }
-
-            var token = GenerateJwtToken(user);
-            var refreshToken = GenerateRefreshToken();
+            // Generate new tokens
+            var newJwtToken = GenerateJwtToken(user);
+            var newRefreshToken = GenerateRefreshToken();
 
             await _refreshTokenRepository.CreateAsync(new Domain.Entities.RefreshToken
             {
-                Token = refreshToken,
+                Token = newRefreshToken,
                 UserId = user.Id,
                 ExpiresAt = DateTime.UtcNow.AddDays(7),
                 CreatedAt = DateTime.UtcNow
@@ -53,22 +61,14 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Login
 
             var response = new LoginResponse
             {
-                Token = token,
-                RefreshToken = refreshToken,
+                Token = newJwtToken,
+                RefreshToken = newRefreshToken,
                 UserName = user.UserName,
                 Email = user.Email,
                 Role = user.Role
             };
 
-            return Result<LoginResponse>.Success(response, "Login successful");
-        }
-
-        private static string GenerateRefreshToken()
-        {
-            var randomBytes = new byte[64];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(randomBytes);
-            return Convert.ToBase64String(randomBytes);
+            return Result<LoginResponse>.Success(response, "Token refreshed successfully");
         }
 
         private string GenerateJwtToken(Domain.Entities.AppUser user)
@@ -91,10 +91,17 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Login
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
                 expires: DateTime.UtcNow.AddHours(2),
-                signingCredentials: credentials
-            );
+                signingCredentials: credentials);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        private static string GenerateRefreshToken()
+        {
+            var randomBytes = new byte[64];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomBytes);
+            return Convert.ToBase64String(randomBytes);
         }
     }
 }

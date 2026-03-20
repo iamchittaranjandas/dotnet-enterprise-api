@@ -16,7 +16,7 @@ namespace DotnetEnterpriseApi.Application.Features.Tasks.Queries.GetAllTasks
 
         public async Task<Result<List<TaskResponse>>> Handle(GetAllTasksQuery request, CancellationToken cancellationToken)
         {
-            var tasks = await _taskRepository.GetAllAsync(1, int.MaxValue);
+            var tasks = await _taskRepository.GetAllAsync(request.PageNumber, request.PageSize);
 
             var response = tasks.Select(t => new TaskResponse
             {

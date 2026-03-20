@@ -1,4 +1,5 @@
 ﻿using DotnetEnterpriseApi.Application.Features.Authentication.Commands.Login;
+using DotnetEnterpriseApi.Application.Features.Authentication.Commands.RefreshToken;
 using DotnetEnterpriseApi.Application.Features.Authentication.Commands.Register;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -31,6 +32,19 @@ namespace DotnetEnterpriseApi.Api.Controllers
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginCommand command)
+        {
+            var result = await _mediator.Send(command);
+
+            if (!result.IsSuccess)
+            {
+                return Unauthorized(new { message = result.Message, errors = result.Errors });
+            }
+
+            return Ok(result);
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenCommand command)
         {
             var result = await _mediator.Send(command);
 

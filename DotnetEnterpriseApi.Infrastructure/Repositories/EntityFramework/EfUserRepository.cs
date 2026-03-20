@@ -14,6 +14,11 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.EntityFramework
             _context = context;
         }
 
+        public async Task<AppUser?> GetByIdAsync(int id)
+        {
+            return await _context.Users.FindAsync(id);
+        }
+
         public async Task<bool> UserExistsAsync(string email)
         {
             return await _context.Users.AnyAsync(u => u.Email == email);

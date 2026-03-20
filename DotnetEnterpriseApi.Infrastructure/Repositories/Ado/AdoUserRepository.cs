@@ -14,6 +14,29 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
             _connectionFactory = connectionFactory;
         }
 
+        public async Task<AppUser?> GetByIdAsync(int id)
+        {
+            const string sql = "SELECT Id, UserName, Email, PasswordHash, Role FROM Users WHERE Id = @Id";
+
+            using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+            await connection.OpenAsync();
+
+            using var command = new SqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@Id", id);
+
+            using var reader = await command.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return null;
+
+            return new AppUser
+            {
+                Id = reader.GetInt32(reader.GetOrdinal("Id")),
+                UserName = reader.GetString(reader.GetOrdinal("UserName")),
+                Email = reader.GetString(reader.GetOrdinal("Email")),
+                PasswordHash = reader.GetString(reader.GetOrdinal("PasswordHash")),
+                Role = reader.GetString(reader.GetOrdinal("Role"))
+            };
+        }
+
         public async Task<bool> UserExistsAsync(string email)
         {
             const string sql = "SELECT COUNT(1) FROM Users WHERE Email = @Email";
