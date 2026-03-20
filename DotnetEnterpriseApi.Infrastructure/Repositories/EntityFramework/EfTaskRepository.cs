@@ -1,20 +1,15 @@
-﻿using DotnetEnterpriseApi.Application.Interfaces;
+using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Domain.Entities;
 using DotnetEnterpriseApi.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace DotnetEnterpriseApi.Infrastructure.Repositories
+namespace DotnetEnterpriseApi.Infrastructure.Repositories.EntityFramework
 {
-    public class TaskRepository : ITaskRepository
+    public class EfTaskRepository : ITaskRepository
     {
         private readonly AppDbContext _context;
 
-        public TaskRepository(AppDbContext context)
+        public EfTaskRepository(AppDbContext context)
         {
             _context = context;
         }
@@ -68,5 +63,4 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories
             return true;
         }
     }
-
 }

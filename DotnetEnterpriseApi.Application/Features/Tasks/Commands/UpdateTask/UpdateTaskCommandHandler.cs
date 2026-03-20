@@ -1,24 +1,23 @@
-using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Common.Models;
 using DotnetEnterpriseApi.Application.Features.Tasks.Commands.CreateTask;
+using DotnetEnterpriseApi.Application.Interfaces;
+using DotnetEnterpriseApi.Domain.Entities;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace DotnetEnterpriseApi.Application.Features.Tasks.Commands.UpdateTask
 {
     public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, Result<TaskResponse>>
     {
-        private readonly IApplicationDbContext _context;
+        private readonly ITaskRepository _taskRepository;
 
-        public UpdateTaskCommandHandler(IApplicationDbContext context)
+        public UpdateTaskCommandHandler(ITaskRepository taskRepository)
         {
-            _context = context;
+            _taskRepository = taskRepository;
         }
 
         public async Task<Result<TaskResponse>> Handle(UpdateTaskCommand request, CancellationToken cancellationToken)
         {
-            var task = await _context.Tasks
-                .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
+            var task = await _taskRepository.GetByIdAsync(request.Id);
 
             if (task == null)
             {
@@ -29,7 +28,7 @@ namespace DotnetEnterpriseApi.Application.Features.Tasks.Commands.UpdateTask
             task.Description = request.Description;
             task.IsCompleted = request.IsCompleted;
 
-            await _context.SaveChangesAsync(cancellationToken);
+            await _taskRepository.UpdateAsync(task);
 
             var response = new TaskResponse
             {

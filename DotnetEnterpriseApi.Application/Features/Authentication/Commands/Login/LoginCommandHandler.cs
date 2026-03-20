@@ -1,7 +1,6 @@
-using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Common.Models;
+using DotnetEnterpriseApi.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -12,19 +11,18 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Login
 {
     public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<LoginResponse>>
     {
-        private readonly IApplicationDbContext _context;
+        private readonly IUserRepository _userRepository;
         private readonly IConfiguration _configuration;
 
-        public LoginCommandHandler(IApplicationDbContext context, IConfiguration configuration)
+        public LoginCommandHandler(IUserRepository userRepository, IConfiguration configuration)
         {
-            _context = context;
+            _userRepository = userRepository;
             _configuration = configuration;
         }
 
         public async Task<Result<LoginResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
         {
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
+            var user = await _userRepository.GetByEmailAsync(request.Email);
 
             if (user == null)
             {

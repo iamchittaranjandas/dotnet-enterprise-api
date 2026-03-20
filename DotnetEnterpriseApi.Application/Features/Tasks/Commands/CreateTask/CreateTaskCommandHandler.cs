@@ -1,5 +1,5 @@
-using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Common.Models;
+using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Domain.Entities;
 using MediatR;
 
@@ -7,11 +7,11 @@ namespace DotnetEnterpriseApi.Application.Features.Tasks.Commands.CreateTask
 {
     public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, Result<TaskResponse>>
     {
-        private readonly IApplicationDbContext _context;
+        private readonly ITaskRepository _taskRepository;
 
-        public CreateTaskCommandHandler(IApplicationDbContext context)
+        public CreateTaskCommandHandler(ITaskRepository taskRepository)
         {
-            _context = context;
+            _taskRepository = taskRepository;
         }
 
         public async Task<Result<TaskResponse>> Handle(CreateTaskCommand request, CancellationToken cancellationToken)
@@ -24,16 +24,15 @@ namespace DotnetEnterpriseApi.Application.Features.Tasks.Commands.CreateTask
                 CreatedDate = DateTime.UtcNow
             };
 
-            _context.Tasks.Add(task);
-            await _context.SaveChangesAsync(cancellationToken);
+            var created = await _taskRepository.AddAsync(task);
 
             var response = new TaskResponse
             {
-                Id = task.Id,
-                Title = task.Title,
-                Description = task.Description,
-                IsCompleted = task.IsCompleted,
-                CreatedDate = task.CreatedDate
+                Id = created.Id,
+                Title = created.Title,
+                Description = created.Description,
+                IsCompleted = created.IsCompleted,
+                CreatedDate = created.CreatedDate
             };
 
             return Result<TaskResponse>.Success(response, "Task created successfully");

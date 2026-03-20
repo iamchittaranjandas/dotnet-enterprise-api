@@ -1,24 +1,22 @@
-using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Common.Models;
+using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Domain.Entities;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Register
 {
     public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<RegisterResponse>>
     {
-        private readonly IApplicationDbContext _context;
+        private readonly IUserRepository _userRepository;
 
-        public RegisterCommandHandler(IApplicationDbContext context)
+        public RegisterCommandHandler(IUserRepository userRepository)
         {
-            _context = context;
+            _userRepository = userRepository;
         }
 
         public async Task<Result<RegisterResponse>> Handle(RegisterCommand request, CancellationToken cancellationToken)
         {
-            var userExists = await _context.Users
-                .AnyAsync(u => u.Email == request.Email, cancellationToken);
+            var userExists = await _userRepository.UserExistsAsync(request.Email);
 
             if (userExists)
             {
@@ -35,14 +33,13 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Regis
                 Role = "User"
             };
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync(cancellationToken);
+            var created = await _userRepository.AddAsync(user);
 
             var response = new RegisterResponse
             {
-                Id = user.Id,
-                UserName = user.UserName,
-                Email = user.Email,
+                Id = created.Id,
+                UserName = created.UserName,
+                Email = created.Email,
                 Message = "User registered successfully"
             };
 

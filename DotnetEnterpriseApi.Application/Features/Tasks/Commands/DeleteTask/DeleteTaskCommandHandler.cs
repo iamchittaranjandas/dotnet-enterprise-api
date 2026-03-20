@@ -1,31 +1,26 @@
-using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Common.Models;
+using DotnetEnterpriseApi.Application.Interfaces;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 
 namespace DotnetEnterpriseApi.Application.Features.Tasks.Commands.DeleteTask
 {
     public class DeleteTaskCommandHandler : IRequestHandler<DeleteTaskCommand, Result>
     {
-        private readonly IApplicationDbContext _context;
+        private readonly ITaskRepository _taskRepository;
 
-        public DeleteTaskCommandHandler(IApplicationDbContext context)
+        public DeleteTaskCommandHandler(ITaskRepository taskRepository)
         {
-            _context = context;
+            _taskRepository = taskRepository;
         }
 
         public async Task<Result> Handle(DeleteTaskCommand request, CancellationToken cancellationToken)
         {
-            var task = await _context.Tasks
-                .FirstOrDefaultAsync(t => t.Id == request.Id, cancellationToken);
+            var deleted = await _taskRepository.DeleteAsync(request.Id);
 
-            if (task == null)
+            if (!deleted)
             {
                 return Result.Failure("Task not found");
             }
-
-            _context.Tasks.Remove(task);
-            await _context.SaveChangesAsync(cancellationToken);
 
             return Result.Success("Task deleted successfully");
         }
