@@ -632,13 +632,22 @@ dotnet test /p:CollectCoverage=true
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please follow these steps:
+Contributions, suggestions, and bug reports are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 
+**Quick start:**
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+3. Make your changes and test with all three data providers
+4. Commit (`git commit -m 'Add: AmazingFeature'`)
+5. Push and open a Pull Request
+
+**Ways to contribute:**
+- [Report a Bug](https://github.com/iamchittaranjandas/dotnet-enterprise-api/issues/new?template=bug_report.md)
+- [Request a Feature](https://github.com/iamchittaranjandas/dotnet-enterprise-api/issues/new?template=feature_request.md)
+- [Ask a Question](https://github.com/iamchittaranjandas/dotnet-enterprise-api/issues/new?template=question.md)
+- Submit a Pull Request
+
+Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing.
 
 ---
 
