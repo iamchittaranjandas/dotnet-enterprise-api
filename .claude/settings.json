@@ -9,6 +9,9 @@
       "Bash(sed -i 's/\"\"DataProvider\"\": \"\"Dapper\"\"/\"\"DataProvider\"\": \"\"Ado\"\"/' DotnetEnterpriseApi.Api/appsettings.json)",
       "WebSearch",
       "Bash(dotnet remove:*)"
+    ],
+    "additionalDirectories": [
+      "d:\\Development\\PersonalWork\\Project\\Dotnet\\DotnetEnterpriseApi\\DotnetEnterpriseApi.Infrastructure\\Data"
     ]
   }
 }

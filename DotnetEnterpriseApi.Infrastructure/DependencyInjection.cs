@@ -1,6 +1,7 @@
 using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Infrastructure.Data;
+using DotnetEnterpriseApi.Infrastructure.Data.Dialects;
 using DotnetEnterpriseApi.Infrastructure.Persistence;
 using DotnetEnterpriseApi.Infrastructure.Repositories.Dapper;
 using DotnetEnterpriseApi.Infrastructure.Repositories.Ado;
@@ -19,11 +20,11 @@ namespace DotnetEnterpriseApi.Infrastructure
 
             if (dataProvider.Equals("Dapper", StringComparison.OrdinalIgnoreCase))
             {
-                services.AddDapperInfrastructure();
+                services.AddDapperInfrastructure(configuration);
             }
             else if (dataProvider.Equals("Ado", StringComparison.OrdinalIgnoreCase))
             {
-                services.AddAdoInfrastructure();
+                services.AddAdoInfrastructure(configuration);
             }
             else
             {
@@ -35,10 +36,27 @@ namespace DotnetEnterpriseApi.Infrastructure
 
         private static void AddEntityFrameworkInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
+            var databaseProvider = configuration["DatabaseProvider"] ?? "SqlServer";
+            var connectionString = configuration.GetConnectionString("DefaultConnection")!;
+
             services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(
-                    configuration.GetConnectionString("DefaultConnection"),
-                    b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
+            {
+                switch (databaseProvider.ToLowerInvariant())
+                {
+                    case "postgresql":
+                        options.UseNpgsql(connectionString,
+                            b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
+                        break;
+                    case "sqlite":
+                        options.UseSqlite(connectionString,
+                            b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
+                        break;
+                    default:
+                        options.UseSqlServer(connectionString,
+                            b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
+                        break;
+                }
+            });
 
             services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<AppDbContext>());
             services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -47,22 +65,35 @@ namespace DotnetEnterpriseApi.Infrastructure
             services.AddScoped<IRefreshTokenRepository, EfRefreshTokenRepository>();
         }
 
-        private static void AddDapperInfrastructure(this IServiceCollection services)
+        private static void AddDapperInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
+            services.AddSingleton<ISqlConnectionFactory, DatabaseConnectionFactory>();
+            services.AddSingleton<ISqlDialect>(ResolveSqlDialect(configuration));
             services.AddScoped<IUnitOfWork, DapperUnitOfWork>();
             services.AddScoped<ITaskRepository, DapperTaskRepository>();
             services.AddScoped<IUserRepository, DapperUserRepository>();
             services.AddScoped<IRefreshTokenRepository, DapperRefreshTokenRepository>();
         }
 
-        private static void AddAdoInfrastructure(this IServiceCollection services)
+        private static void AddAdoInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
+            services.AddSingleton<ISqlConnectionFactory, DatabaseConnectionFactory>();
+            services.AddSingleton<ISqlDialect>(ResolveSqlDialect(configuration));
             services.AddScoped<IUnitOfWork, DapperUnitOfWork>();
             services.AddScoped<ITaskRepository, AdoTaskRepository>();
             services.AddScoped<IUserRepository, AdoUserRepository>();
             services.AddScoped<IRefreshTokenRepository, AdoRefreshTokenRepository>();
+        }
+
+        private static ISqlDialect ResolveSqlDialect(IConfiguration configuration)
+        {
+            var provider = configuration["DatabaseProvider"] ?? "SqlServer";
+            return provider.ToLowerInvariant() switch
+            {
+                "postgresql" => new PostgreSqlDialect(),
+                "sqlite" => new SqliteDialect(),
+                _ => new SqlServerDialect(),
+            };
         }
     }
 }

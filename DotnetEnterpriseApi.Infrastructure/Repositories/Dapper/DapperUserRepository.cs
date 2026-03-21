@@ -8,10 +8,12 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
     public class DapperUserRepository : IUserRepository
     {
         private readonly ISqlConnectionFactory _connectionFactory;
+        private readonly ISqlDialect _dialect;
 
-        public DapperUserRepository(ISqlConnectionFactory connectionFactory)
+        public DapperUserRepository(ISqlConnectionFactory connectionFactory, ISqlDialect dialect)
         {
             _connectionFactory = connectionFactory;
+            _dialect = dialect;
         }
 
         public async Task<AppUser?> GetByIdAsync(int id)
@@ -42,10 +44,10 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
 
         public async Task<AppUser> AddAsync(AppUser user)
         {
-            const string sql = @"
-                INSERT INTO Users (UserName, Email, PasswordHash, Role)
-                OUTPUT INSERTED.Id
-                VALUES (@UserName, @Email, @PasswordHash, @Role)";
+            var sql = _dialect.InsertReturningId(
+                "Users",
+                "UserName, Email, PasswordHash, Role",
+                "@UserName, @Email, @PasswordHash, @Role");
 
             using var connection = _connectionFactory.CreateConnection();
             var id = await connection.ExecuteScalarAsync<int>(sql, new

@@ -116,11 +116,27 @@ namespace DotnetEnterpriseApi.Api.Extensions
 
         public static IServiceCollection AddHealthChecksConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddHealthChecks()
-                .AddSqlServer(
-                    configuration.GetConnectionString("DefaultConnection")!,
-                    name: "sqlserver",
-                    tags: new[] { "db", "sql" });
+            var databaseProvider = configuration["DatabaseProvider"] ?? "SqlServer";
+            var connectionString = configuration.GetConnectionString("DefaultConnection")!;
+            var healthChecks = services.AddHealthChecks();
+
+            switch (databaseProvider.ToLowerInvariant())
+            {
+                case "postgresql":
+                    healthChecks.AddNpgSql(connectionString, name: "postgresql", tags: new[] { "db", "sql" });
+                    break;
+                case "sqlite":
+                    healthChecks.AddCheck("sqlite", () =>
+                    {
+                        using var conn = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
+                        conn.Open();
+                        return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy();
+                    }, tags: new[] { "db", "sql" });
+                    break;
+                default:
+                    healthChecks.AddSqlServer(connectionString, name: "sqlserver", tags: new[] { "db", "sql" });
+                    break;
+            }
 
             return services;
         }

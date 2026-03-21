@@ -1,40 +1,46 @@
 using System.Data;
+using System.Data.Common;
 using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Domain.Entities;
-using Microsoft.Data.SqlClient;
 
 namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 {
     public class AdoTaskRepository : ITaskRepository
     {
         private readonly ISqlConnectionFactory _connectionFactory;
+        private readonly ISqlDialect _dialect;
 
-        public AdoTaskRepository(ISqlConnectionFactory connectionFactory)
+        public AdoTaskRepository(ISqlConnectionFactory connectionFactory, ISqlDialect dialect)
         {
             _connectionFactory = connectionFactory;
+            _dialect = dialect;
         }
 
         public async Task<List<TaskItem>> GetAllAsync(int? cursor, int pageSize)
         {
             var sql = cursor.HasValue
-                ? @"SELECT TOP (@PageSize) Id, Title, Description, IsCompleted, CreatedDate
-                    FROM Tasks
-                    WHERE Id < @Cursor
-                    ORDER BY Id DESC"
-                : @"SELECT TOP (@PageSize) Id, Title, Description, IsCompleted, CreatedDate
-                    FROM Tasks
-                    ORDER BY Id DESC";
+                ? _dialect.PaginateQuery(
+                    "Id, Title, Description, IsCompleted, CreatedDate",
+                    "Tasks",
+                    "Id < @Cursor",
+                    "ORDER BY Id DESC")
+                : _dialect.PaginateQuery(
+                    "Id, Title, Description, IsCompleted, CreatedDate",
+                    "Tasks",
+                    null,
+                    "ORDER BY Id DESC");
 
-            using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+            using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
-            using var command = new SqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@PageSize", pageSize);
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            AddParameter(command, "@PageSize", pageSize);
 
             if (cursor.HasValue)
             {
-                command.Parameters.AddWithValue("@Cursor", cursor.Value);
+                AddParameter(command, "@Cursor", cursor.Value);
             }
 
             using var reader = await command.ExecuteReaderAsync();
@@ -52,11 +58,12 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
         {
             const string sql = "SELECT Id, Title, Description, IsCompleted, CreatedDate FROM Tasks WHERE Id = @Id";
 
-            using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+            using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
-            using var command = new SqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@Id", id);
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            AddParameter(command, "@Id", id);
 
             using var reader = await command.ExecuteReaderAsync();
             return await reader.ReadAsync() ? MapTaskItem(reader) : null;
@@ -64,21 +71,22 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<TaskItem> AddAsync(TaskItem taskItem)
         {
-            const string sql = @"
-                INSERT INTO Tasks (Title, Description, IsCompleted, CreatedDate)
-                OUTPUT INSERTED.Id
-                VALUES (@Title, @Description, @IsCompleted, @CreatedDate)";
+            var sql = _dialect.InsertReturningId(
+                "Tasks",
+                "Title, Description, IsCompleted, CreatedDate",
+                "@Title, @Description, @IsCompleted, @CreatedDate");
 
-            using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+            using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
-            using var command = new SqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@Title", taskItem.Title);
-            command.Parameters.AddWithValue("@Description", (object?)taskItem.Description ?? DBNull.Value);
-            command.Parameters.AddWithValue("@IsCompleted", taskItem.IsCompleted);
-            command.Parameters.AddWithValue("@CreatedDate", taskItem.CreatedDate);
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            AddParameter(command, "@Title", taskItem.Title);
+            AddParameter(command, "@Description", (object?)taskItem.Description ?? DBNull.Value);
+            AddParameter(command, "@IsCompleted", taskItem.IsCompleted);
+            AddParameter(command, "@CreatedDate", taskItem.CreatedDate);
 
-            var id = (int)(await command.ExecuteScalarAsync())!;
+            var id = Convert.ToInt32(await command.ExecuteScalarAsync());
             taskItem.Id = id;
             return taskItem;
         }
@@ -90,14 +98,15 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
                 SET Title = @Title, Description = @Description, IsCompleted = @IsCompleted
                 WHERE Id = @Id";
 
-            using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+            using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
-            using var command = new SqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@Id", taskItem.Id);
-            command.Parameters.AddWithValue("@Title", taskItem.Title);
-            command.Parameters.AddWithValue("@Description", (object?)taskItem.Description ?? DBNull.Value);
-            command.Parameters.AddWithValue("@IsCompleted", taskItem.IsCompleted);
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            AddParameter(command, "@Id", taskItem.Id);
+            AddParameter(command, "@Title", taskItem.Title);
+            AddParameter(command, "@Description", (object?)taskItem.Description ?? DBNull.Value);
+            AddParameter(command, "@IsCompleted", taskItem.IsCompleted);
 
             return await command.ExecuteNonQueryAsync() > 0;
         }
@@ -106,11 +115,12 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
         {
             const string sql = "DELETE FROM Tasks WHERE Id = @Id";
 
-            using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+            using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
-            using var command = new SqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@Id", id);
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            AddParameter(command, "@Id", id);
 
             return await command.ExecuteNonQueryAsync() > 0;
         }
@@ -127,6 +137,14 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
                 IsCompleted = reader.GetBoolean(reader.GetOrdinal("IsCompleted")),
                 CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate"))
             };
+        }
+
+        private static void AddParameter(IDbCommand command, string name, object? value)
+        {
+            var p = command.CreateParameter();
+            p.ParameterName = name;
+            p.Value = value ?? DBNull.Value;
+            command.Parameters.Add(p);
         }
     }
 }

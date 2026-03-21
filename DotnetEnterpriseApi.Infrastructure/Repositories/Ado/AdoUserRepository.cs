@@ -1,53 +1,51 @@
+using System.Data;
+using System.Data.Common;
 using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Domain.Entities;
-using Microsoft.Data.SqlClient;
 
 namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 {
     public class AdoUserRepository : IUserRepository
     {
         private readonly ISqlConnectionFactory _connectionFactory;
+        private readonly ISqlDialect _dialect;
 
-        public AdoUserRepository(ISqlConnectionFactory connectionFactory)
+        public AdoUserRepository(ISqlConnectionFactory connectionFactory, ISqlDialect dialect)
         {
             _connectionFactory = connectionFactory;
+            _dialect = dialect;
         }
 
         public async Task<AppUser?> GetByIdAsync(int id)
         {
             const string sql = "SELECT Id, UserName, Email, PasswordHash, Role FROM Users WHERE Id = @Id";
 
-            using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+            using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
-            using var command = new SqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@Id", id);
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            AddParameter(command, "@Id", id);
 
             using var reader = await command.ExecuteReaderAsync();
             if (!await reader.ReadAsync()) return null;
 
-            return new AppUser
-            {
-                Id = reader.GetInt32(reader.GetOrdinal("Id")),
-                UserName = reader.GetString(reader.GetOrdinal("UserName")),
-                Email = reader.GetString(reader.GetOrdinal("Email")),
-                PasswordHash = reader.GetString(reader.GetOrdinal("PasswordHash")),
-                Role = reader.GetString(reader.GetOrdinal("Role"))
-            };
+            return MapUser(reader);
         }
 
         public async Task<bool> UserExistsAsync(string email)
         {
             const string sql = "SELECT COUNT(1) FROM Users WHERE Email = @Email";
 
-            using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+            using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
-            using var command = new SqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@Email", email);
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            AddParameter(command, "@Email", email);
 
-            var count = (int)(await command.ExecuteScalarAsync())!;
+            var count = Convert.ToInt32(await command.ExecuteScalarAsync());
             return count > 0;
         }
 
@@ -55,15 +53,43 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
         {
             const string sql = "SELECT Id, UserName, Email, PasswordHash, Role FROM Users WHERE Email = @Email";
 
-            using var connection = (SqlConnection)_connectionFactory.CreateConnection();
+            using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
-            using var command = new SqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@Email", email);
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            AddParameter(command, "@Email", email);
 
             using var reader = await command.ExecuteReaderAsync();
             if (!await reader.ReadAsync()) return null;
 
+            return MapUser(reader);
+        }
+
+        public async Task<AppUser> AddAsync(AppUser user)
+        {
+            var sql = _dialect.InsertReturningId(
+                "Users",
+                "UserName, Email, PasswordHash, Role",
+                "@UserName, @Email, @PasswordHash, @Role");
+
+            using var connection = (DbConnection)_connectionFactory.CreateConnection();
+            await connection.OpenAsync();
+
+            using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            AddParameter(command, "@UserName", user.UserName);
+            AddParameter(command, "@Email", user.Email);
+            AddParameter(command, "@PasswordHash", user.PasswordHash);
+            AddParameter(command, "@Role", user.Role);
+
+            var id = Convert.ToInt32(await command.ExecuteScalarAsync());
+            user.Id = id;
+            return user;
+        }
+
+        private static AppUser MapUser(IDataReader reader)
+        {
             return new AppUser
             {
                 Id = reader.GetInt32(reader.GetOrdinal("Id")),
@@ -74,25 +100,12 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
             };
         }
 
-        public async Task<AppUser> AddAsync(AppUser user)
+        private static void AddParameter(IDbCommand command, string name, object? value)
         {
-            const string sql = @"
-                INSERT INTO Users (UserName, Email, PasswordHash, Role)
-                OUTPUT INSERTED.Id
-                VALUES (@UserName, @Email, @PasswordHash, @Role)";
-
-            using var connection = (SqlConnection)_connectionFactory.CreateConnection();
-            await connection.OpenAsync();
-
-            using var command = new SqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@UserName", user.UserName);
-            command.Parameters.AddWithValue("@Email", user.Email);
-            command.Parameters.AddWithValue("@PasswordHash", user.PasswordHash);
-            command.Parameters.AddWithValue("@Role", user.Role);
-
-            var id = (int)(await command.ExecuteScalarAsync())!;
-            user.Id = id;
-            return user;
+            var p = command.CreateParameter();
+            p.ParameterName = name;
+            p.Value = value ?? DBNull.Value;
+            command.Parameters.Add(p);
         }
     }
 }

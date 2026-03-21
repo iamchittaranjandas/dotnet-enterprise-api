@@ -8,37 +8,32 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
     public class DapperTaskRepository : ITaskRepository
     {
         private readonly ISqlConnectionFactory _connectionFactory;
+        private readonly ISqlDialect _dialect;
 
-        public DapperTaskRepository(ISqlConnectionFactory connectionFactory)
+        public DapperTaskRepository(ISqlConnectionFactory connectionFactory, ISqlDialect dialect)
         {
             _connectionFactory = connectionFactory;
+            _dialect = dialect;
         }
 
         public async Task<List<TaskItem>> GetAllAsync(int? cursor, int pageSize)
         {
-            string sql;
-            object parameters;
-
-            if (cursor.HasValue)
-            {
-                sql = @"
-                    SELECT TOP (@PageSize) Id, Title, Description, IsCompleted, CreatedDate
-                    FROM Tasks
-                    WHERE Id < @Cursor
-                    ORDER BY Id DESC";
-                parameters = new { Cursor = cursor.Value, PageSize = pageSize };
-            }
-            else
-            {
-                sql = @"
-                    SELECT TOP (@PageSize) Id, Title, Description, IsCompleted, CreatedDate
-                    FROM Tasks
-                    ORDER BY Id DESC";
-                parameters = new { PageSize = pageSize };
-            }
+            var sql = cursor.HasValue
+                ? _dialect.PaginateQuery(
+                    "Id, Title, Description, IsCompleted, CreatedDate",
+                    "Tasks",
+                    "Id < @Cursor",
+                    "ORDER BY Id DESC")
+                : _dialect.PaginateQuery(
+                    "Id, Title, Description, IsCompleted, CreatedDate",
+                    "Tasks",
+                    null,
+                    "ORDER BY Id DESC");
 
             using var connection = _connectionFactory.CreateConnection();
-            var result = await connection.QueryAsync<TaskItem>(sql, parameters);
+            var result = cursor.HasValue
+                ? await connection.QueryAsync<TaskItem>(sql, new { Cursor = cursor.Value, PageSize = pageSize })
+                : await connection.QueryAsync<TaskItem>(sql, new { PageSize = pageSize });
 
             return result.ToList();
         }
@@ -53,10 +48,10 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
 
         public async Task<TaskItem> AddAsync(TaskItem taskItem)
         {
-            const string sql = @"
-                INSERT INTO Tasks (Title, Description, IsCompleted, CreatedDate)
-                OUTPUT INSERTED.Id
-                VALUES (@Title, @Description, @IsCompleted, @CreatedDate)";
+            var sql = _dialect.InsertReturningId(
+                "Tasks",
+                "Title, Description, IsCompleted, CreatedDate",
+                "@Title, @Description, @IsCompleted, @CreatedDate");
 
             using var connection = _connectionFactory.CreateConnection();
             var id = await connection.ExecuteScalarAsync<int>(sql, new

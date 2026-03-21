@@ -50,7 +50,7 @@ This project serves as a **comprehensive template** for building enterprise-grad
 - **Global Exception Handling** - Centralized error management
 - **Request Logging Middleware** - Comprehensive request/response logging
 - **Swagger/OpenAPI** - Interactive API documentation
-- **Entity Framework Core** - Code-first database approach
+- **Multi-Database Support** - Switch between SQL Server, PostgreSQL, or SQLite with a single config change
 - **Multi-Provider Data Access** - Choose between Entity Framework, Dapper, or ADO.NET via config
 - **Health Checks** - Database and API health monitoring at `/health`
 - **Rate Limiting** - Fixed window, sliding window, and token bucket policies
@@ -71,15 +71,17 @@ This project serves as a **comprehensive template** for building enterprise-grad
 - **FluentValidation** (11.11.0) - Request validation
 - **Entity Framework Core** (10.0.5) - Full ORM with change tracking & migrations
 - **Dapper** (2.1.72) - Lightweight micro-ORM with raw SQL
-- **ADO.NET** (Microsoft.Data.SqlClient) - Pure data access, no ORM
-- **SQL Server**
+- **ADO.NET** - Pure data access, no ORM
+- **SQL Server** / **PostgreSQL** / **SQLite** - Multi-database support via config
+- **Npgsql** (10.0.2) - PostgreSQL data provider
+- **Microsoft.Data.Sqlite** (10.0.5) - SQLite data provider
 - **JWT Bearer Authentication** + **Refresh Tokens**
 - **BCrypt.Net** - Secure password hashing
 - **AutoMapper** (16.1.1) - Object mapping with profiles
 - **Swagger/OpenAPI** - API documentation
 - **OpenTelemetry** (1.15.0) - Distributed tracing & metrics
 - **Asp.Versioning** (8.1.1) - API version management
-- **AspNetCore.HealthChecks.SqlServer** (9.0.0) - Database health monitoring
+- **Health Checks** - Database-specific health monitoring (SQL Server, PostgreSQL, SQLite)
 
 ---
 
@@ -158,15 +160,20 @@ Domain/
 - Database context implementation
 - Repository implementations (EF Core, Dapper, ADO.NET)
 - Unit of Work implementation
-- Data provider selection via configuration
+- Database and data provider selection via configuration
+- SQL dialect abstraction for multi-database support
 - Data persistence
 
 **Structure:**
 ```
 Infrastructure/
 ├── Data/
-│   ├── AppDbContext.cs            # EF Core DbContext with domain events
-│   └── SqlConnectionFactory.cs    # IDbConnection factory (Dapper & ADO.NET)
+│   ├── AppDbContext.cs              # EF Core DbContext with domain events
+│   ├── DatabaseConnectionFactory.cs # Multi-database connection factory
+│   └── Dialects/
+│       ├── SqlServerDialect.cs      # SQL Server SQL generation
+│       ├── PostgreSqlDialect.cs     # PostgreSQL SQL generation
+│       └── SqliteDialect.cs         # SQLite SQL generation
 ├── Persistence/
 │   ├── UnitOfWork.cs              # EF Core transaction management
 │   └── DapperUnitOfWork.cs        # Dapper/ADO transaction management
@@ -195,6 +202,41 @@ Infrastructure Layer → Application Layer + Domain Layer
 
 ---
 
+## 🗄️ Database Provider Selection
+
+This project supports **three database engines**. Switch with a single config change — no code modifications required.
+
+### How to Switch
+
+Edit `DotnetEnterpriseApi.Api/appsettings.json`:
+```json
+{
+  "DatabaseProvider": "SqlServer",
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=DotNetEnterpriseApiDb;Trusted_Connection=True;TrustServerCertificate=True;"
+  }
+}
+```
+
+| Value | Connection String Example | Best For |
+|-------|--------------------------|----------|
+| `SqlServer` | `Server=(localdb)\\mssqllocaldb;Database=MyDb;Trusted_Connection=True;` | Production, enterprise workloads |
+| `PostgreSQL` | `Host=localhost;Database=MyDb;Username=postgres;Password=pass` | Open-source production deployments |
+| `SQLite` | `Data Source=MyApp.db` | Development, testing, embedded apps |
+
+### How It Works
+
+The `DatabaseProvider` setting controls:
+
+1. **EF Core Provider** — switches between `UseSqlServer()`, `UseNpgsql()`, `UseSqlite()`
+2. **Connection Factory** — creates `SqlConnection`, `NpgsqlConnection`, or `SqliteConnection`
+3. **SQL Dialect** — generates database-specific SQL (e.g., `OUTPUT INSERTED.Id` vs `RETURNING Id` vs `last_insert_rowid()`)
+4. **Health Checks** — registers the appropriate database health check
+
+> **Note:** When switching database providers with EF Core, delete existing migrations and regenerate with `dotnet ef migrations add InitialCreate`, or use `Database.EnsureCreated()` for development.
+
+---
+
 ## 🔌 Data Provider Selection
 
 This project supports **three data access strategies**. You choose which one to use by setting a single value in `appsettings.json` — no code changes required.
@@ -212,30 +254,32 @@ Edit `DotnetEnterpriseApi.Api/appsettings.json`:
 |-------|-------------|----------|
 | `EntityFramework` | EF Core with DbContext, change tracking, LINQ, migrations | Rapid development, complex queries, automatic schema management |
 | `Dapper` | Micro-ORM with raw SQL and automatic object mapping | High-performance reads, fine-tuned SQL control |
-| `Ado` | Pure ADO.NET with SqlCommand/SqlDataReader, no ORM | Maximum control, zero abstraction overhead |
+| `Ado` | Pure ADO.NET with DbCommand/DbDataReader, no ORM | Maximum control, zero abstraction overhead |
 
 ### How It Works
 
 ```
-appsettings.json ["DataProvider"]
+appsettings.json ["DataProvider"] + ["DatabaseProvider"]
         │
         ▼
 DependencyInjection.cs (Infrastructure)
         │
         ├── "EntityFramework"
-        │       ├── AppDbContext (EF Core)
+        │       ├── AppDbContext (UseSqlServer / UseNpgsql / UseSqlite)
         │       ├── UnitOfWork (EF transactions)
         │       ├── EfTaskRepository
         │       └── EfUserRepository
         │
         ├── "Dapper"
-        │       ├── SqlConnectionFactory (IDbConnection)
+        │       ├── DatabaseConnectionFactory (SqlConnection / NpgsqlConnection / SqliteConnection)
+        │       ├── ISqlDialect (SqlServer / PostgreSQL / SQLite)
         │       ├── DapperUnitOfWork
         │       ├── DapperTaskRepository
         │       └── DapperUserRepository
         │
         └── "Ado"
-                ├── SqlConnectionFactory (IDbConnection)
+                ├── DatabaseConnectionFactory (SqlConnection / NpgsqlConnection / SqliteConnection)
+                ├── ISqlDialect (SqlServer / PostgreSQL / SQLite)
                 ├── DapperUnitOfWork
                 ├── AdoTaskRepository
                 └── AdoUserRepository
@@ -261,7 +305,7 @@ Handler (uses ITaskRepository / IUserRepository)
 Repository Implementation (EF / Dapper / ADO — selected at startup)
   │
   ▼
-SQL Server Database
+Database (SQL Server / PostgreSQL / SQLite — selected at startup)
   │
   ▼
 Result<T> flows back up through the same chain

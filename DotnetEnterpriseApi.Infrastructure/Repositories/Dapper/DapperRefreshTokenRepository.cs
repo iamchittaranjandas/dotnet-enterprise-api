@@ -8,18 +8,20 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
     public class DapperRefreshTokenRepository : IRefreshTokenRepository
     {
         private readonly ISqlConnectionFactory _connectionFactory;
+        private readonly ISqlDialect _dialect;
 
-        public DapperRefreshTokenRepository(ISqlConnectionFactory connectionFactory)
+        public DapperRefreshTokenRepository(ISqlConnectionFactory connectionFactory, ISqlDialect dialect)
         {
             _connectionFactory = connectionFactory;
+            _dialect = dialect;
         }
 
         public async Task<RefreshToken> CreateAsync(RefreshToken refreshToken)
         {
-            const string sql = @"
-                INSERT INTO RefreshTokens (Token, UserId, ExpiresAt, CreatedAt, IsRevoked)
-                OUTPUT INSERTED.Id
-                VALUES (@Token, @UserId, @ExpiresAt, @CreatedAt, @IsRevoked)";
+            var sql = _dialect.InsertReturningId(
+                "RefreshTokens",
+                "Token, UserId, ExpiresAt, CreatedAt, IsRevoked",
+                "@Token, @UserId, @ExpiresAt, @CreatedAt, @IsRevoked");
 
             using var connection = _connectionFactory.CreateConnection();
             var id = await connection.ExecuteScalarAsync<int>(sql, new
@@ -45,10 +47,10 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
 
         public async Task RevokeAsync(string token)
         {
-            const string sql = "UPDATE RefreshTokens SET IsRevoked = 1 WHERE Token = @Token";
+            const string sql = "UPDATE RefreshTokens SET IsRevoked = @IsRevoked WHERE Token = @Token";
 
             using var connection = _connectionFactory.CreateConnection();
-            await connection.ExecuteAsync(sql, new { Token = token });
+            await connection.ExecuteAsync(sql, new { Token = token, IsRevoked = true });
         }
     }
 }
