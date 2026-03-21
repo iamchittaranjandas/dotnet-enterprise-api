@@ -15,20 +15,27 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
             _connectionFactory = connectionFactory;
         }
 
-        public async Task<List<TaskItem>> GetAllAsync(int pageNumber, int pageSize)
+        public async Task<List<TaskItem>> GetAllAsync(int? cursor, int pageSize)
         {
-            const string sql = @"
-                SELECT Id, Title, Description, IsCompleted, CreatedDate
-                FROM Tasks
-                ORDER BY CreatedDate DESC
-                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+            var sql = cursor.HasValue
+                ? @"SELECT TOP (@PageSize) Id, Title, Description, IsCompleted, CreatedDate
+                    FROM Tasks
+                    WHERE Id < @Cursor
+                    ORDER BY Id DESC"
+                : @"SELECT TOP (@PageSize) Id, Title, Description, IsCompleted, CreatedDate
+                    FROM Tasks
+                    ORDER BY Id DESC";
 
             using var connection = (SqlConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = new SqlCommand(sql, connection);
-            command.Parameters.AddWithValue("@Offset", (pageNumber - 1) * pageSize);
             command.Parameters.AddWithValue("@PageSize", pageSize);
+
+            if (cursor.HasValue)
+            {
+                command.Parameters.AddWithValue("@Cursor", cursor.Value);
+            }
 
             using var reader = await command.ExecuteReaderAsync();
             var tasks = new List<TaskItem>();

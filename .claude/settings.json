@@ -7,7 +7,8 @@
       "Bash(dotnet ef:*)",
       "Bash(taskkill //F //IM \"DotnetEnterpriseApi.Api.exe\")",
       "Bash(sed -i 's/\"\"DataProvider\"\": \"\"Dapper\"\"/\"\"DataProvider\"\": \"\"Ado\"\"/' DotnetEnterpriseApi.Api/appsettings.json)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(dotnet remove:*)"
     ]
   }
 }

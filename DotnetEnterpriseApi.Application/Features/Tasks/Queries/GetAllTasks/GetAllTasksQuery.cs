@@ -4,9 +4,9 @@ using MediatR;
 
 namespace DotnetEnterpriseApi.Application.Features.Tasks.Queries.GetAllTasks
 {
-    public class GetAllTasksQuery : IRequest<Result<List<TaskResponse>>>
+    public class GetAllTasksQuery : IRequest<Result<CursorPagedResult<TaskResponse>>>
     {
-        public int PageNumber { get; set; } = 1;
+        public int? Cursor { get; set; }
         public int PageSize { get; set; } = 10;
     }
 }

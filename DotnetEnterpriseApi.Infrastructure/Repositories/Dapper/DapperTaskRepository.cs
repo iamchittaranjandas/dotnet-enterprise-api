@@ -14,20 +14,31 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
             _connectionFactory = connectionFactory;
         }
 
-        public async Task<List<TaskItem>> GetAllAsync(int pageNumber, int pageSize)
+        public async Task<List<TaskItem>> GetAllAsync(int? cursor, int pageSize)
         {
-            const string sql = @"
-                SELECT Id, Title, Description, IsCompleted, CreatedDate
-                FROM Tasks
-                ORDER BY CreatedDate DESC
-                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+            string sql;
+            object parameters;
+
+            if (cursor.HasValue)
+            {
+                sql = @"
+                    SELECT TOP (@PageSize) Id, Title, Description, IsCompleted, CreatedDate
+                    FROM Tasks
+                    WHERE Id < @Cursor
+                    ORDER BY Id DESC";
+                parameters = new { Cursor = cursor.Value, PageSize = pageSize };
+            }
+            else
+            {
+                sql = @"
+                    SELECT TOP (@PageSize) Id, Title, Description, IsCompleted, CreatedDate
+                    FROM Tasks
+                    ORDER BY Id DESC";
+                parameters = new { PageSize = pageSize };
+            }
 
             using var connection = _connectionFactory.CreateConnection();
-            var result = await connection.QueryAsync<TaskItem>(sql, new
-            {
-                Offset = (pageNumber - 1) * pageSize,
-                PageSize = pageSize
-            });
+            var result = await connection.QueryAsync<TaskItem>(sql, parameters);
 
             return result.ToList();
         }

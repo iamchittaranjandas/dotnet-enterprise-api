@@ -1,3 +1,4 @@
+using AutoMapper;
 using DotnetEnterpriseApi.Application.Common.Models;
 using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Domain.Entities;
@@ -8,10 +9,12 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Regis
     public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<RegisterResponse>>
     {
         private readonly IUserRepository _userRepository;
+        private readonly IMapper _mapper;
 
-        public RegisterCommandHandler(IUserRepository userRepository)
+        public RegisterCommandHandler(IUserRepository userRepository, IMapper mapper)
         {
             _userRepository = userRepository;
+            _mapper = mapper;
         }
 
         public async Task<Result<RegisterResponse>> Handle(RegisterCommand request, CancellationToken cancellationToken)
@@ -35,13 +38,8 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Regis
 
             var created = await _userRepository.AddAsync(user);
 
-            var response = new RegisterResponse
-            {
-                Id = created.Id,
-                UserName = created.UserName,
-                Email = created.Email,
-                Message = "User registered successfully"
-            };
+            var response = _mapper.Map<RegisterResponse>(created);
+            response.Message = "User registered successfully";
 
             return Result<RegisterResponse>.Success(response, "User registered successfully");
         }

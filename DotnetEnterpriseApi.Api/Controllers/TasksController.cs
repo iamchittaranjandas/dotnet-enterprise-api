@@ -22,9 +22,9 @@ namespace DotnetEnterpriseApi.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllTasks([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAllTasks([FromQuery] int? cursor = null, [FromQuery] int pageSize = 10)
         {
-            var query = new GetAllTasksQuery { PageNumber = pageNumber, PageSize = pageSize };
+            var query = new GetAllTasksQuery { Cursor = cursor, PageSize = pageSize };
             var result = await _mediator.Send(query);
 
             if (!result.IsSuccess)

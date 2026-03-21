@@ -14,12 +14,17 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.EntityFramework
             _context = context;
         }
 
-        public async Task<List<TaskItem>> GetAllAsync(int pageNumber, int pageSize)
+        public async Task<List<TaskItem>> GetAllAsync(int? cursor, int pageSize)
         {
-            return await _context.Tasks
-                .AsNoTracking()
-                .OrderByDescending(t => t.CreatedDate)
-                .Skip((pageNumber - 1) * pageSize)
+            var query = _context.Tasks.AsNoTracking();
+
+            if (cursor.HasValue)
+            {
+                query = query.Where(t => t.Id < cursor.Value);
+            }
+
+            return await query
+                .OrderByDescending(t => t.Id)
                 .Take(pageSize)
                 .ToListAsync();
         }

@@ -1,3 +1,4 @@
+using AutoMapper;
 using DotnetEnterpriseApi.Application.Common.Models;
 using DotnetEnterpriseApi.Application.Features.Tasks.Commands.CreateTask;
 using DotnetEnterpriseApi.Application.Interfaces;
@@ -5,29 +6,37 @@ using MediatR;
 
 namespace DotnetEnterpriseApi.Application.Features.Tasks.Queries.GetAllTasks
 {
-    public class GetAllTasksQueryHandler : IRequestHandler<GetAllTasksQuery, Result<List<TaskResponse>>>
+    public class GetAllTasksQueryHandler : IRequestHandler<GetAllTasksQuery, Result<CursorPagedResult<TaskResponse>>>
     {
         private readonly ITaskRepository _taskRepository;
+        private readonly IMapper _mapper;
 
-        public GetAllTasksQueryHandler(ITaskRepository taskRepository)
+        public GetAllTasksQueryHandler(ITaskRepository taskRepository, IMapper mapper)
         {
             _taskRepository = taskRepository;
+            _mapper = mapper;
         }
 
-        public async Task<Result<List<TaskResponse>>> Handle(GetAllTasksQuery request, CancellationToken cancellationToken)
+        public async Task<Result<CursorPagedResult<TaskResponse>>> Handle(GetAllTasksQuery request, CancellationToken cancellationToken)
         {
-            var tasks = await _taskRepository.GetAllAsync(request.PageNumber, request.PageSize);
+            var tasks = await _taskRepository.GetAllAsync(request.Cursor, request.PageSize + 1);
 
-            var response = tasks.Select(t => new TaskResponse
+            var hasNextPage = tasks.Count > request.PageSize;
+            if (hasNextPage)
             {
-                Id = t.Id,
-                Title = t.Title,
-                Description = t.Description,
-                IsCompleted = t.IsCompleted,
-                CreatedDate = t.CreatedDate
-            }).ToList();
+                tasks = tasks.Take(request.PageSize).ToList();
+            }
 
-            return Result<List<TaskResponse>>.Success(response, "Tasks retrieved successfully");
+            var items = _mapper.Map<List<TaskResponse>>(tasks);
+
+            var result = new CursorPagedResult<TaskResponse>
+            {
+                Items = items,
+                HasNextPage = hasNextPage,
+                NextCursor = hasNextPage ? tasks.Last().Id : null
+            };
+
+            return Result<CursorPagedResult<TaskResponse>>.Success(result, "Tasks retrieved successfully");
         }
     }
 }

@@ -1,10 +1,10 @@
-﻿using DotnetEnterpriseApi.Domain.Entities;
+using DotnetEnterpriseApi.Domain.Entities;
 
 namespace DotnetEnterpriseApi.Application.Interfaces
 {
     public interface ITaskRepository
     {
-        Task<List<TaskItem>> GetAllAsync(int pageNumber, int pageSize);
+        Task<List<TaskItem>> GetAllAsync(int? cursor, int pageSize);
 
         Task<TaskItem?> GetByIdAsync(int id);
 
