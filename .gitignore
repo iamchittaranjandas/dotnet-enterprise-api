@@ -409,6 +409,9 @@ FodyWeavers.xsd
 # Claude Code
 .claude/
 
+# GitHub templates
+.github/
+
 # VS Code files for those working on multiple tools
 .vscode/*
 !.vscode/settings.json
