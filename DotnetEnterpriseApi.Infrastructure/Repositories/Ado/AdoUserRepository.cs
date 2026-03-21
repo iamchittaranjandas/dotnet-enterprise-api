@@ -3,6 +3,7 @@ using System.Data.Common;
 using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Domain.Entities;
+using DotnetEnterpriseApi.Infrastructure.Repositories.Queries;
 
 namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 {
@@ -19,7 +20,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<AppUser?> GetByIdAsync(int id)
         {
-            var sql = _dialect.FormatSql("SELECT Id, UserName, Email, PasswordHash, Role FROM Users WHERE Id = @Id");
+            var sql = UserQueries.GetById(_dialect);
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
@@ -36,7 +37,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<bool> UserExistsAsync(string email)
         {
-            var sql = _dialect.FormatSql("SELECT COUNT(1) FROM Users WHERE Email = @Email");
+            var sql = UserQueries.ExistsByEmail(_dialect);
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
@@ -51,7 +52,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<AppUser?> GetByEmailAsync(string email)
         {
-            var sql = _dialect.FormatSql("SELECT Id, UserName, Email, PasswordHash, Role FROM Users WHERE Email = @Email");
+            var sql = UserQueries.GetByEmail(_dialect);
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
@@ -68,10 +69,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<AppUser> AddAsync(AppUser user)
         {
-            var sql = _dialect.FormatSql(_dialect.InsertReturningId(
-                "Users",
-                "UserName, Email, PasswordHash, Role",
-                "@UserName, @Email, @PasswordHash, @Role"));
+            var sql = UserQueries.Insert(_dialect);
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();

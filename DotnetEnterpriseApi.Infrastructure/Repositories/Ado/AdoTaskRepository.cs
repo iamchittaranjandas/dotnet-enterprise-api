@@ -3,6 +3,7 @@ using System.Data.Common;
 using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Domain.Entities;
+using DotnetEnterpriseApi.Infrastructure.Repositories.Queries;
 
 namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 {
@@ -19,19 +20,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<List<TaskItem>> GetAllAsync(int? cursor, int pageSize)
         {
-            var sql = cursor.HasValue
-                ? _dialect.PaginateQuery(
-                    "Id, Title, Description, IsCompleted, CreatedDate",
-                    "Tasks",
-                    "Id < @Cursor",
-                    "ORDER BY Id DESC")
-                : _dialect.PaginateQuery(
-                    "Id, Title, Description, IsCompleted, CreatedDate",
-                    "Tasks",
-                    null,
-                    "ORDER BY Id DESC");
-
-            sql = _dialect.FormatSql(sql);
+            var sql = TaskQueries.GetAllPaginated(_dialect, cursor.HasValue);
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
@@ -58,7 +47,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<TaskItem?> GetByIdAsync(int id)
         {
-            var sql = _dialect.FormatSql("SELECT Id, Title, Description, IsCompleted, CreatedDate FROM Tasks WHERE Id = @Id");
+            var sql = TaskQueries.GetById(_dialect);
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
@@ -73,10 +62,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<TaskItem> AddAsync(TaskItem taskItem)
         {
-            var sql = _dialect.FormatSql(_dialect.InsertReturningId(
-                "Tasks",
-                "Title, Description, IsCompleted, CreatedDate",
-                "@Title, @Description, @IsCompleted, @CreatedDate"));
+            var sql = TaskQueries.Insert(_dialect);
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
@@ -108,10 +94,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<bool> UpdateAsync(TaskItem taskItem)
         {
-            var sql = _dialect.FormatSql(@"
-                UPDATE Tasks
-                SET Title = @Title, Description = @Description, IsCompleted = @IsCompleted
-                WHERE Id = @Id");
+            var sql = TaskQueries.Update(_dialect);
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
@@ -128,7 +111,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<bool> DeleteAsync(int id)
         {
-            var sql = _dialect.FormatSql("DELETE FROM Tasks WHERE Id = @Id");
+            var sql = TaskQueries.Delete(_dialect);
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();

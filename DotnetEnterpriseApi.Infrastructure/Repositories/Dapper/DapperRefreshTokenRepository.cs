@@ -3,6 +3,7 @@ using Dapper;
 using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Domain.Entities;
+using DotnetEnterpriseApi.Infrastructure.Repositories.Queries;
 
 namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
 {
@@ -19,10 +20,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
 
         public async Task<RefreshToken> CreateAsync(RefreshToken refreshToken)
         {
-            var sql = _dialect.FormatSql(_dialect.InsertReturningId(
-                "RefreshTokens",
-                "Token, UserId, ExpiresAt, CreatedAt, IsRevoked",
-                "@Token, @UserId, @ExpiresAt, @CreatedAt, @IsRevoked"));
+            var sql = RefreshTokenQueries.Insert(_dialect);
 
             using var connection = _connectionFactory.CreateConnection();
 
@@ -56,7 +54,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
 
         public async Task<RefreshToken?> GetByTokenAsync(string token)
         {
-            var sql = _dialect.FormatSql("SELECT Id, Token, UserId, ExpiresAt, CreatedAt, IsRevoked FROM RefreshTokens WHERE Token = @Token");
+            var sql = RefreshTokenQueries.GetByToken(_dialect);
 
             using var connection = _connectionFactory.CreateConnection();
             return await connection.QueryFirstOrDefaultAsync<RefreshToken>(sql, new { Token = token });
@@ -64,7 +62,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
 
         public async Task RevokeAsync(string token)
         {
-            var sql = _dialect.FormatSql("UPDATE RefreshTokens SET IsRevoked = @IsRevoked WHERE Token = @Token");
+            var sql = RefreshTokenQueries.Revoke(_dialect);
 
             using var connection = _connectionFactory.CreateConnection();
             await connection.ExecuteAsync(sql, new { Token = token, IsRevoked = true });
