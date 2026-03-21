@@ -1,9 +1,10 @@
 using System.Data;
 using DotnetEnterpriseApi.Application.Common.Interfaces;
 using Microsoft.Data.SqlClient;
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
+using MySqlConnector;
 using Npgsql;
+using Oracle.ManagedDataAccess.Client;
 
 namespace DotnetEnterpriseApi.Infrastructure.Data
 {
@@ -24,7 +25,8 @@ namespace DotnetEnterpriseApi.Infrastructure.Data
             return _databaseProvider.ToLowerInvariant() switch
             {
                 "postgresql" => new NpgsqlConnection(_connectionString),
-                "sqlite" => new SqliteConnection(_connectionString),
+                "mysql" => new MySqlConnection(_connectionString),
+                "oracle" => new OracleConnection(_connectionString),
                 _ => new SqlConnection(_connectionString),
             };
         }

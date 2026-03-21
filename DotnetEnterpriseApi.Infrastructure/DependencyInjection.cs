@@ -47,8 +47,12 @@ namespace DotnetEnterpriseApi.Infrastructure
                         options.UseNpgsql(connectionString,
                             b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
                         break;
-                    case "sqlite":
-                        options.UseSqlite(connectionString,
+                    case "mysql":
+                        options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString),
+                            b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
+                        break;
+                    case "oracle":
+                        options.UseOracle(connectionString,
                             b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
                         break;
                     default:
@@ -91,7 +95,8 @@ namespace DotnetEnterpriseApi.Infrastructure
             return provider.ToLowerInvariant() switch
             {
                 "postgresql" => new PostgreSqlDialect(),
-                "sqlite" => new SqliteDialect(),
+                "mysql" => new MySqlDialect(),
+                "oracle" => new OracleDialect(),
                 _ => new SqlServerDialect(),
             };
         }

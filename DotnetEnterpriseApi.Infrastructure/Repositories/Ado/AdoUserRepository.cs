@@ -19,14 +19,14 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<AppUser?> GetByIdAsync(int id)
         {
-            const string sql = "SELECT Id, UserName, Email, PasswordHash, Role FROM Users WHERE Id = @Id";
+            var sql = _dialect.FormatSql("SELECT Id, UserName, Email, PasswordHash, Role FROM Users WHERE Id = @Id");
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
-            AddParameter(command, "@Id", id);
+            AddParameter(command, _dialect.FormatSql("@Id"), id);
 
             using var reader = await command.ExecuteReaderAsync();
             if (!await reader.ReadAsync()) return null;
@@ -36,14 +36,14 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<bool> UserExistsAsync(string email)
         {
-            const string sql = "SELECT COUNT(1) FROM Users WHERE Email = @Email";
+            var sql = _dialect.FormatSql("SELECT COUNT(1) FROM Users WHERE Email = @Email");
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
-            AddParameter(command, "@Email", email);
+            AddParameter(command, _dialect.FormatSql("@Email"), email);
 
             var count = Convert.ToInt32(await command.ExecuteScalarAsync());
             return count > 0;
@@ -51,14 +51,14 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<AppUser?> GetByEmailAsync(string email)
         {
-            const string sql = "SELECT Id, UserName, Email, PasswordHash, Role FROM Users WHERE Email = @Email";
+            var sql = _dialect.FormatSql("SELECT Id, UserName, Email, PasswordHash, Role FROM Users WHERE Email = @Email");
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
-            AddParameter(command, "@Email", email);
+            AddParameter(command, _dialect.FormatSql("@Email"), email);
 
             using var reader = await command.ExecuteReaderAsync();
             if (!await reader.ReadAsync()) return null;
@@ -68,23 +68,36 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<AppUser> AddAsync(AppUser user)
         {
-            var sql = _dialect.InsertReturningId(
+            var sql = _dialect.FormatSql(_dialect.InsertReturningId(
                 "Users",
                 "UserName, Email, PasswordHash, Role",
-                "@UserName, @Email, @PasswordHash, @Role");
+                "@UserName, @Email, @PasswordHash, @Role"));
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
-            AddParameter(command, "@UserName", user.UserName);
-            AddParameter(command, "@Email", user.Email);
-            AddParameter(command, "@PasswordHash", user.PasswordHash);
-            AddParameter(command, "@Role", user.Role);
+            AddParameter(command, _dialect.FormatSql("@UserName"), user.UserName);
+            AddParameter(command, _dialect.FormatSql("@Email"), user.Email);
+            AddParameter(command, _dialect.FormatSql("@PasswordHash"), user.PasswordHash);
+            AddParameter(command, _dialect.FormatSql("@Role"), user.Role);
 
-            var id = Convert.ToInt32(await command.ExecuteScalarAsync());
-            user.Id = id;
+            if (_dialect.RequiresOutputParameterForInsert)
+            {
+                var outParam = command.CreateParameter();
+                outParam.ParameterName = "NewId";
+                outParam.DbType = DbType.Int32;
+                outParam.Direction = ParameterDirection.Output;
+                command.Parameters.Add(outParam);
+                await command.ExecuteNonQueryAsync();
+                user.Id = Convert.ToInt32(outParam.Value);
+            }
+            else
+            {
+                user.Id = Convert.ToInt32(await command.ExecuteScalarAsync());
+            }
+
             return user;
         }
 

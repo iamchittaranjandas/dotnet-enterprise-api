@@ -1,3 +1,4 @@
+using System.Data;
 using Dapper;
 using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Interfaces;
@@ -30,6 +31,8 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
                     null,
                     "ORDER BY Id DESC");
 
+            sql = _dialect.FormatSql(sql);
+
             using var connection = _connectionFactory.CreateConnection();
             var result = cursor.HasValue
                 ? await connection.QueryAsync<TaskItem>(sql, new { Cursor = cursor.Value, PageSize = pageSize })
@@ -40,7 +43,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
 
         public async Task<TaskItem?> GetByIdAsync(int id)
         {
-            const string sql = "SELECT Id, Title, Description, IsCompleted, CreatedDate FROM Tasks WHERE Id = @Id";
+            var sql = _dialect.FormatSql("SELECT Id, Title, Description, IsCompleted, CreatedDate FROM Tasks WHERE Id = @Id");
 
             using var connection = _connectionFactory.CreateConnection();
             return await connection.QueryFirstOrDefaultAsync<TaskItem>(sql, new { Id = id });
@@ -48,30 +51,45 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
 
         public async Task<TaskItem> AddAsync(TaskItem taskItem)
         {
-            var sql = _dialect.InsertReturningId(
+            var sql = _dialect.FormatSql(_dialect.InsertReturningId(
                 "Tasks",
                 "Title, Description, IsCompleted, CreatedDate",
-                "@Title, @Description, @IsCompleted, @CreatedDate");
+                "@Title, @Description, @IsCompleted, @CreatedDate"));
 
             using var connection = _connectionFactory.CreateConnection();
-            var id = await connection.ExecuteScalarAsync<int>(sql, new
-            {
-                taskItem.Title,
-                taskItem.Description,
-                taskItem.IsCompleted,
-                taskItem.CreatedDate
-            });
 
-            taskItem.Id = id;
+            if (_dialect.RequiresOutputParameterForInsert)
+            {
+                var parameters = new DynamicParameters();
+                parameters.Add("Title", taskItem.Title);
+                parameters.Add("Description", taskItem.Description);
+                parameters.Add("IsCompleted", taskItem.IsCompleted);
+                parameters.Add("CreatedDate", taskItem.CreatedDate);
+                parameters.Add("NewId", dbType: DbType.Int32, direction: ParameterDirection.Output);
+                await connection.ExecuteAsync(sql, parameters);
+                taskItem.Id = parameters.Get<int>("NewId");
+            }
+            else
+            {
+                var result = await connection.ExecuteScalarAsync<object>(sql, new
+                {
+                    taskItem.Title,
+                    taskItem.Description,
+                    taskItem.IsCompleted,
+                    taskItem.CreatedDate
+                });
+                taskItem.Id = Convert.ToInt32(result);
+            }
+
             return taskItem;
         }
 
         public async Task<bool> UpdateAsync(TaskItem taskItem)
         {
-            const string sql = @"
+            var sql = _dialect.FormatSql(@"
                 UPDATE Tasks
                 SET Title = @Title, Description = @Description, IsCompleted = @IsCompleted
-                WHERE Id = @Id";
+                WHERE Id = @Id");
 
             using var connection = _connectionFactory.CreateConnection();
             var affected = await connection.ExecuteAsync(sql, new
@@ -87,7 +105,7 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Dapper
 
         public async Task<bool> DeleteAsync(int id)
         {
-            const string sql = "DELETE FROM Tasks WHERE Id = @Id";
+            var sql = _dialect.FormatSql("DELETE FROM Tasks WHERE Id = @Id");
 
             using var connection = _connectionFactory.CreateConnection();
             var affected = await connection.ExecuteAsync(sql, new { Id = id });

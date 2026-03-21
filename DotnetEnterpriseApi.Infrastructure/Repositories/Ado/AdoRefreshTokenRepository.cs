@@ -19,37 +19,50 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<RefreshToken> CreateAsync(RefreshToken refreshToken)
         {
-            var sql = _dialect.InsertReturningId(
+            var sql = _dialect.FormatSql(_dialect.InsertReturningId(
                 "RefreshTokens",
                 "Token, UserId, ExpiresAt, CreatedAt, IsRevoked",
-                "@Token, @UserId, @ExpiresAt, @CreatedAt, @IsRevoked");
+                "@Token, @UserId, @ExpiresAt, @CreatedAt, @IsRevoked"));
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
-            AddParameter(command, "@Token", refreshToken.Token);
-            AddParameter(command, "@UserId", refreshToken.UserId);
-            AddParameter(command, "@ExpiresAt", refreshToken.ExpiresAt);
-            AddParameter(command, "@CreatedAt", refreshToken.CreatedAt);
-            AddParameter(command, "@IsRevoked", refreshToken.IsRevoked);
+            AddParameter(command, _dialect.FormatSql("@Token"), refreshToken.Token);
+            AddParameter(command, _dialect.FormatSql("@UserId"), refreshToken.UserId);
+            AddParameter(command, _dialect.FormatSql("@ExpiresAt"), refreshToken.ExpiresAt);
+            AddParameter(command, _dialect.FormatSql("@CreatedAt"), refreshToken.CreatedAt);
+            AddParameter(command, _dialect.FormatSql("@IsRevoked"), refreshToken.IsRevoked);
 
-            var id = Convert.ToInt32(await command.ExecuteScalarAsync());
-            refreshToken.Id = id;
+            if (_dialect.RequiresOutputParameterForInsert)
+            {
+                var outParam = command.CreateParameter();
+                outParam.ParameterName = "NewId";
+                outParam.DbType = DbType.Int32;
+                outParam.Direction = ParameterDirection.Output;
+                command.Parameters.Add(outParam);
+                await command.ExecuteNonQueryAsync();
+                refreshToken.Id = Convert.ToInt32(outParam.Value);
+            }
+            else
+            {
+                refreshToken.Id = Convert.ToInt32(await command.ExecuteScalarAsync());
+            }
+
             return refreshToken;
         }
 
         public async Task<RefreshToken?> GetByTokenAsync(string token)
         {
-            const string sql = "SELECT Id, Token, UserId, ExpiresAt, CreatedAt, IsRevoked FROM RefreshTokens WHERE Token = @Token";
+            var sql = _dialect.FormatSql("SELECT Id, Token, UserId, ExpiresAt, CreatedAt, IsRevoked FROM RefreshTokens WHERE Token = @Token");
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
-            AddParameter(command, "@Token", token);
+            AddParameter(command, _dialect.FormatSql("@Token"), token);
 
             using var reader = await command.ExecuteReaderAsync();
             if (!await reader.ReadAsync()) return null;
@@ -67,15 +80,15 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task RevokeAsync(string token)
         {
-            const string sql = "UPDATE RefreshTokens SET IsRevoked = @IsRevoked WHERE Token = @Token";
+            var sql = _dialect.FormatSql("UPDATE RefreshTokens SET IsRevoked = @IsRevoked WHERE Token = @Token");
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
-            AddParameter(command, "@Token", token);
-            AddParameter(command, "@IsRevoked", true);
+            AddParameter(command, _dialect.FormatSql("@Token"), token);
+            AddParameter(command, _dialect.FormatSql("@IsRevoked"), true);
             await command.ExecuteNonQueryAsync();
         }
 

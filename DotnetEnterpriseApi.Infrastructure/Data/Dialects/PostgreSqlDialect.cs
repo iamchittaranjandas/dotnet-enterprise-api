@@ -12,5 +12,9 @@ namespace DotnetEnterpriseApi.Infrastructure.Data.Dialects
             var where = whereClause is not null ? $"WHERE {whereClause}" : "";
             return $"SELECT {selectColumns} FROM {fromClause} {where} {orderByClause} LIMIT @PageSize";
         }
+
+        public bool RequiresOutputParameterForInsert => false;
+
+        public string FormatSql(string sql) => sql;
     }
 }

@@ -50,7 +50,7 @@ This project serves as a **comprehensive template** for building enterprise-grad
 - **Global Exception Handling** - Centralized error management
 - **Request Logging Middleware** - Comprehensive request/response logging
 - **Swagger/OpenAPI** - Interactive API documentation
-- **Multi-Database Support** - Switch between SQL Server, PostgreSQL, or SQLite with a single config change
+- **Multi-Database Support** - Switch between SQL Server, PostgreSQL, MySQL, or Oracle with a single config change
 - **Multi-Provider Data Access** - Choose between Entity Framework, Dapper, or ADO.NET via config
 - **Health Checks** - Database and API health monitoring at `/health`
 - **Rate Limiting** - Fixed window, sliding window, and token bucket policies
@@ -72,16 +72,17 @@ This project serves as a **comprehensive template** for building enterprise-grad
 - **Entity Framework Core** (10.0.5) - Full ORM with change tracking & migrations
 - **Dapper** (2.1.72) - Lightweight micro-ORM with raw SQL
 - **ADO.NET** - Pure data access, no ORM
-- **SQL Server** / **PostgreSQL** / **SQLite** - Multi-database support via config
+- **SQL Server** / **PostgreSQL** / **MySQL** / **Oracle** - Multi-database support via config
 - **Npgsql** (10.0.2) - PostgreSQL data provider
-- **Microsoft.Data.Sqlite** (10.0.5) - SQLite data provider
+- **MySqlConnector** (2.5.0) - MySQL data provider
+- **Oracle.ManagedDataAccess.Core** (23.26.100) - Oracle data provider
 - **JWT Bearer Authentication** + **Refresh Tokens**
 - **BCrypt.Net** - Secure password hashing
 - **AutoMapper** (16.1.1) - Object mapping with profiles
 - **Swagger/OpenAPI** - API documentation
 - **OpenTelemetry** (1.15.0) - Distributed tracing & metrics
 - **Asp.Versioning** (8.1.1) - API version management
-- **Health Checks** - Database-specific health monitoring (SQL Server, PostgreSQL, SQLite)
+- **Health Checks** - Database-specific health monitoring (SQL Server, PostgreSQL, MySQL, Oracle)
 
 ---
 
@@ -173,7 +174,8 @@ Infrastructure/
 │   └── Dialects/
 │       ├── SqlServerDialect.cs      # SQL Server SQL generation
 │       ├── PostgreSqlDialect.cs     # PostgreSQL SQL generation
-│       └── SqliteDialect.cs         # SQLite SQL generation
+│       ├── MySqlDialect.cs          # MySQL SQL generation
+│       └── OracleDialect.cs         # Oracle SQL generation
 ├── Persistence/
 │   ├── UnitOfWork.cs              # EF Core transaction management
 │   └── DapperUnitOfWork.cs        # Dapper/ADO transaction management
@@ -204,7 +206,7 @@ Infrastructure Layer → Application Layer + Domain Layer
 
 ## 🗄️ Database Provider Selection
 
-This project supports **three database engines**. Switch with a single config change — no code modifications required.
+This project supports **four database engines**. Switch with a single config change — no code modifications required.
 
 ### How to Switch
 
@@ -222,15 +224,16 @@ Edit `DotnetEnterpriseApi.Api/appsettings.json`:
 |-------|--------------------------|----------|
 | `SqlServer` | `Server=(localdb)\\mssqllocaldb;Database=MyDb;Trusted_Connection=True;` | Production, enterprise workloads |
 | `PostgreSQL` | `Host=localhost;Database=MyDb;Username=postgres;Password=pass` | Open-source production deployments |
-| `SQLite` | `Data Source=MyApp.db` | Development, testing, embedded apps |
+| `MySQL` | `Server=localhost;Database=MyDb;User=root;Password=pass;` | Web applications, cross-platform deployments |
+| `Oracle` | `Data Source=localhost:1521/XEPDB1;User Id=system;Password=pass;` | Enterprise, legacy system integration |
 
 ### How It Works
 
 The `DatabaseProvider` setting controls:
 
-1. **EF Core Provider** — switches between `UseSqlServer()`, `UseNpgsql()`, `UseSqlite()`
-2. **Connection Factory** — creates `SqlConnection`, `NpgsqlConnection`, or `SqliteConnection`
-3. **SQL Dialect** — generates database-specific SQL (e.g., `OUTPUT INSERTED.Id` vs `RETURNING Id` vs `last_insert_rowid()`)
+1. **EF Core Provider** — switches between `UseSqlServer()`, `UseNpgsql()`, `UseMySql()`, `UseOracle()`
+2. **Connection Factory** — creates `SqlConnection`, `NpgsqlConnection`, `MySqlConnection`, or `OracleConnection`
+3. **SQL Dialect** — generates database-specific SQL (e.g., `OUTPUT INSERTED.Id` vs `RETURNING Id` vs `LAST_INSERT_ID()` vs `RETURNING INTO`)
 4. **Health Checks** — registers the appropriate database health check
 
 > **Note:** When switching database providers with EF Core, delete existing migrations and regenerate with `dotnet ef migrations add InitialCreate`, or use `Database.EnsureCreated()` for development.
@@ -265,21 +268,21 @@ appsettings.json ["DataProvider"] + ["DatabaseProvider"]
 DependencyInjection.cs (Infrastructure)
         │
         ├── "EntityFramework"
-        │       ├── AppDbContext (UseSqlServer / UseNpgsql / UseSqlite)
+        │       ├── AppDbContext (UseSqlServer / UseNpgsql / UseMySql / UseOracle)
         │       ├── UnitOfWork (EF transactions)
         │       ├── EfTaskRepository
         │       └── EfUserRepository
         │
         ├── "Dapper"
-        │       ├── DatabaseConnectionFactory (SqlConnection / NpgsqlConnection / SqliteConnection)
-        │       ├── ISqlDialect (SqlServer / PostgreSQL / SQLite)
+        │       ├── DatabaseConnectionFactory (SqlConnection / NpgsqlConnection / MySqlConnection / OracleConnection)
+        │       ├── ISqlDialect (SqlServer / PostgreSQL / MySQL / Oracle)
         │       ├── DapperUnitOfWork
         │       ├── DapperTaskRepository
         │       └── DapperUserRepository
         │
         └── "Ado"
-                ├── DatabaseConnectionFactory (SqlConnection / NpgsqlConnection / SqliteConnection)
-                ├── ISqlDialect (SqlServer / PostgreSQL / SQLite)
+                ├── DatabaseConnectionFactory (SqlConnection / NpgsqlConnection / MySqlConnection / OracleConnection)
+                ├── ISqlDialect (SqlServer / PostgreSQL / MySQL / Oracle)
                 ├── DapperUnitOfWork
                 ├── AdoTaskRepository
                 └── AdoUserRepository
@@ -305,7 +308,7 @@ Handler (uses ITaskRepository / IUserRepository)
 Repository Implementation (EF / Dapper / ADO — selected at startup)
   │
   ▼
-Database (SQL Server / PostgreSQL / SQLite — selected at startup)
+Database (SQL Server / PostgreSQL / MySQL / Oracle — selected at startup)
   │
   ▼
 Result<T> flows back up through the same chain

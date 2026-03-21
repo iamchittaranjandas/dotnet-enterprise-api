@@ -125,13 +125,11 @@ namespace DotnetEnterpriseApi.Api.Extensions
                 case "postgresql":
                     healthChecks.AddNpgSql(connectionString, name: "postgresql", tags: new[] { "db", "sql" });
                     break;
-                case "sqlite":
-                    healthChecks.AddCheck("sqlite", () =>
-                    {
-                        using var conn = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
-                        conn.Open();
-                        return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy();
-                    }, tags: new[] { "db", "sql" });
+                case "mysql":
+                    healthChecks.AddMySql(connectionString, name: "mysql", tags: new[] { "db", "sql" });
+                    break;
+                case "oracle":
+                    healthChecks.AddOracle(connectionString, name: "oracle", tags: new[] { "db", "sql" });
                     break;
                 default:
                     healthChecks.AddSqlServer(connectionString, name: "sqlserver", tags: new[] { "db", "sql" });

@@ -31,16 +31,18 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
                     null,
                     "ORDER BY Id DESC");
 
+            sql = _dialect.FormatSql(sql);
+
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
-            AddParameter(command, "@PageSize", pageSize);
+            AddParameter(command, _dialect.FormatSql("@PageSize"), pageSize);
 
             if (cursor.HasValue)
             {
-                AddParameter(command, "@Cursor", cursor.Value);
+                AddParameter(command, _dialect.FormatSql("@Cursor"), cursor.Value);
             }
 
             using var reader = await command.ExecuteReaderAsync();
@@ -56,14 +58,14 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<TaskItem?> GetByIdAsync(int id)
         {
-            const string sql = "SELECT Id, Title, Description, IsCompleted, CreatedDate FROM Tasks WHERE Id = @Id";
+            var sql = _dialect.FormatSql("SELECT Id, Title, Description, IsCompleted, CreatedDate FROM Tasks WHERE Id = @Id");
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
-            AddParameter(command, "@Id", id);
+            AddParameter(command, _dialect.FormatSql("@Id"), id);
 
             using var reader = await command.ExecuteReaderAsync();
             return await reader.ReadAsync() ? MapTaskItem(reader) : null;
@@ -71,56 +73,69 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.Ado
 
         public async Task<TaskItem> AddAsync(TaskItem taskItem)
         {
-            var sql = _dialect.InsertReturningId(
+            var sql = _dialect.FormatSql(_dialect.InsertReturningId(
                 "Tasks",
                 "Title, Description, IsCompleted, CreatedDate",
-                "@Title, @Description, @IsCompleted, @CreatedDate");
+                "@Title, @Description, @IsCompleted, @CreatedDate"));
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
-            AddParameter(command, "@Title", taskItem.Title);
-            AddParameter(command, "@Description", (object?)taskItem.Description ?? DBNull.Value);
-            AddParameter(command, "@IsCompleted", taskItem.IsCompleted);
-            AddParameter(command, "@CreatedDate", taskItem.CreatedDate);
+            AddParameter(command, _dialect.FormatSql("@Title"), taskItem.Title);
+            AddParameter(command, _dialect.FormatSql("@Description"), (object?)taskItem.Description ?? DBNull.Value);
+            AddParameter(command, _dialect.FormatSql("@IsCompleted"), taskItem.IsCompleted);
+            AddParameter(command, _dialect.FormatSql("@CreatedDate"), taskItem.CreatedDate);
 
-            var id = Convert.ToInt32(await command.ExecuteScalarAsync());
-            taskItem.Id = id;
+            if (_dialect.RequiresOutputParameterForInsert)
+            {
+                var outParam = command.CreateParameter();
+                outParam.ParameterName = "NewId";
+                outParam.DbType = DbType.Int32;
+                outParam.Direction = ParameterDirection.Output;
+                command.Parameters.Add(outParam);
+                await command.ExecuteNonQueryAsync();
+                taskItem.Id = Convert.ToInt32(outParam.Value);
+            }
+            else
+            {
+                taskItem.Id = Convert.ToInt32(await command.ExecuteScalarAsync());
+            }
+
             return taskItem;
         }
 
         public async Task<bool> UpdateAsync(TaskItem taskItem)
         {
-            const string sql = @"
+            var sql = _dialect.FormatSql(@"
                 UPDATE Tasks
                 SET Title = @Title, Description = @Description, IsCompleted = @IsCompleted
-                WHERE Id = @Id";
+                WHERE Id = @Id");
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
-            AddParameter(command, "@Id", taskItem.Id);
-            AddParameter(command, "@Title", taskItem.Title);
-            AddParameter(command, "@Description", (object?)taskItem.Description ?? DBNull.Value);
-            AddParameter(command, "@IsCompleted", taskItem.IsCompleted);
+            AddParameter(command, _dialect.FormatSql("@Id"), taskItem.Id);
+            AddParameter(command, _dialect.FormatSql("@Title"), taskItem.Title);
+            AddParameter(command, _dialect.FormatSql("@Description"), (object?)taskItem.Description ?? DBNull.Value);
+            AddParameter(command, _dialect.FormatSql("@IsCompleted"), taskItem.IsCompleted);
 
             return await command.ExecuteNonQueryAsync() > 0;
         }
 
         public async Task<bool> DeleteAsync(int id)
         {
-            const string sql = "DELETE FROM Tasks WHERE Id = @Id";
+            var sql = _dialect.FormatSql("DELETE FROM Tasks WHERE Id = @Id");
 
             using var connection = (DbConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
 
             using var command = connection.CreateCommand();
             command.CommandText = sql;
-            AddParameter(command, "@Id", id);
+            AddParameter(command, _dialect.FormatSql("@Id"), id);
 
             return await command.ExecuteNonQueryAsync() > 0;
         }

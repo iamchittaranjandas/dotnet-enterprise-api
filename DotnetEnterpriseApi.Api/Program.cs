@@ -29,6 +29,18 @@ namespace DotnetEnterpriseApi.Api
 
             var app = builder.Build();
 
+            // ── Auto-create database schema for non-SQL Server providers ──
+            var databaseProvider = builder.Configuration["DatabaseProvider"] ?? "SqlServer";
+            if (!databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
+            {
+                using var scope = app.Services.CreateScope();
+                var dbContext = scope.ServiceProvider.GetService<DotnetEnterpriseApi.Infrastructure.Data.AppDbContext>();
+                if (dbContext != null)
+                {
+                    dbContext.Database.EnsureCreated();
+                }
+            }
+
             // ── Middleware Pipeline ──
             app.UseSwaggerDocumentation();
             app.UseCustomMiddlewares();
