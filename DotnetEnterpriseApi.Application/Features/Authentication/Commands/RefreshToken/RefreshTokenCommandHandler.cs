@@ -1,3 +1,4 @@
+using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Common.Models;
 using DotnetEnterpriseApi.Application.Features.Authentication.Commands.Login;
 using DotnetEnterpriseApi.Application.Interfaces;
@@ -15,15 +16,18 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Refre
     {
         private readonly IRefreshTokenRepository _refreshTokenRepository;
         private readonly IUserRepository _userRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IConfiguration _configuration;
 
         public RefreshTokenCommandHandler(
             IRefreshTokenRepository refreshTokenRepository,
             IUserRepository userRepository,
+            IUnitOfWork unitOfWork,
             IConfiguration configuration)
         {
             _refreshTokenRepository = refreshTokenRepository;
             _userRepository = userRepository;
+            _unitOfWork = unitOfWork;
             _configuration = configuration;
         }
 
@@ -36,10 +40,8 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Refre
                 return Result<LoginResponse>.Failure("Invalid or expired refresh token");
             }
 
-            // Revoke the old refresh token
             await _refreshTokenRepository.RevokeAsync(request.Token);
 
-            // Get the user
             var user = await _userRepository.GetByIdAsync(existingToken.UserId);
 
             if (user == null)
@@ -47,7 +49,6 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Refre
                 return Result<LoginResponse>.Failure("User not found");
             }
 
-            // Generate new tokens
             var newJwtToken = GenerateJwtToken(user);
             var newRefreshToken = GenerateRefreshToken();
 
@@ -58,6 +59,8 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Refre
                 ExpiresAt = DateTime.UtcNow.AddDays(7),
                 CreatedAt = DateTime.UtcNow
             });
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var response = new LoginResponse
             {

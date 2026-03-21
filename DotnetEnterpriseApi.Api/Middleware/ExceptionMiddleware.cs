@@ -1,4 +1,5 @@
-﻿using System.Net;
+using FluentValidation;
+using System.Net;
 using System.Text.Json;
 
 namespace DotnetEnterpriseApi.Api.Middleware
@@ -20,6 +21,25 @@ namespace DotnetEnterpriseApi.Api.Middleware
             {
                 await _next(context);
             }
+            catch (ValidationException ex)
+            {
+                _logger.LogWarning("Validation failed: {Errors}", ex.Errors);
+
+                context.Response.ContentType = "application/json";
+                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+
+                var response = new
+                {
+                    message = "Validation failed",
+                    errors = ex.Errors.Select(e => new
+                    {
+                        property = e.PropertyName,
+                        error = e.ErrorMessage
+                    })
+                };
+
+                await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An unhandled exception occurred.");
@@ -29,16 +49,11 @@ namespace DotnetEnterpriseApi.Api.Middleware
 
                 var response = new
                 {
-                    message = "An unexpected error occurred.",
-                    details = ex.Message
+                    message = "An unexpected error occurred."
                 };
 
-                var jsonResponse = JsonSerializer.Serialize(response);
-
-                await context.Response.WriteAsync(jsonResponse);
+                await context.Response.WriteAsync(JsonSerializer.Serialize(response));
             }
         }
-
-
     }
 }

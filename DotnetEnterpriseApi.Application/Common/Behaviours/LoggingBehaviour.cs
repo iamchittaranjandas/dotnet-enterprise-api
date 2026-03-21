@@ -17,13 +17,13 @@ namespace DotnetEnterpriseApi.Application.Common.Behaviours
         {
             var requestName = typeof(TRequest).Name;
 
-            _logger.LogInformation("Handling {RequestName}", requestName);
+            _logger.LogDebug("Handling {RequestName}", requestName);
 
             try
             {
                 var response = await next();
 
-                _logger.LogInformation("Handled {RequestName} successfully", requestName);
+                _logger.LogDebug("Handled {RequestName} successfully", requestName);
 
                 return response;
             }

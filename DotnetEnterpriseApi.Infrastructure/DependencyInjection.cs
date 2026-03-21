@@ -39,25 +39,36 @@ namespace DotnetEnterpriseApi.Infrastructure
             var databaseProvider = configuration["DatabaseProvider"] ?? "SqlServer";
             var connectionString = configuration.GetConnectionString("DefaultConnection")!;
 
-            services.AddDbContext<AppDbContext>(options =>
+            services.AddDbContextPool<AppDbContext>(options =>
             {
                 switch (databaseProvider.ToLowerInvariant())
                 {
                     case "postgresql":
-                        options.UseNpgsql(connectionString,
-                            b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
+                        options.UseNpgsql(connectionString, b =>
+                        {
+                            b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
+                            b.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
+                        });
                         break;
                     case "mysql":
-                        options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString),
-                            b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
+                        options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), b =>
+                        {
+                            b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
+                            b.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorNumbersToAdd: null);
+                        });
                         break;
                     case "oracle":
-                        options.UseOracle(connectionString,
-                            b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
+                        options.UseOracle(connectionString, b =>
+                        {
+                            b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
+                        });
                         break;
                     default:
-                        options.UseSqlServer(connectionString,
-                            b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
+                        options.UseSqlServer(connectionString, b =>
+                        {
+                            b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
+                            b.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorNumbersToAdd: null);
+                        });
                         break;
                 }
             });

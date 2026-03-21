@@ -37,7 +37,6 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.EntityFramework
         public async Task<TaskItem> AddAsync(TaskItem taskItem)
         {
             _context.Tasks.Add(taskItem);
-            await _context.SaveChangesAsync();
             return taskItem;
         }
 
@@ -52,7 +51,6 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.EntityFramework
             existingTask.Description = taskItem.Description;
             existingTask.IsCompleted = taskItem.IsCompleted;
 
-            await _context.SaveChangesAsync();
             return true;
         }
 
@@ -64,7 +62,6 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.EntityFramework
                 return false;
 
             _context.Tasks.Remove(task);
-            await _context.SaveChangesAsync();
             return true;
         }
     }

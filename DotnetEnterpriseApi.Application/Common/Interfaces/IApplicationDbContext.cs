@@ -7,6 +7,7 @@ namespace DotnetEnterpriseApi.Application.Common.Interfaces
     {
         DbSet<AppUser> Users { get; }
         DbSet<TaskItem> Tasks { get; }
+        DbSet<RefreshToken> RefreshTokens { get; }
 
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }

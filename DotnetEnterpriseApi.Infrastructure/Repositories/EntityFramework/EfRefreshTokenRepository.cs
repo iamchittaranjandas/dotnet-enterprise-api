@@ -17,13 +17,12 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.EntityFramework
         public async Task<RefreshToken> CreateAsync(RefreshToken refreshToken)
         {
             _context.RefreshTokens.Add(refreshToken);
-            await _context.SaveChangesAsync();
             return refreshToken;
         }
 
         public async Task<RefreshToken?> GetByTokenAsync(string token)
         {
-            return await _context.RefreshTokens
+            return await _context.RefreshTokens.AsNoTracking()
                 .FirstOrDefaultAsync(rt => rt.Token == token);
         }
 
@@ -35,7 +34,6 @@ namespace DotnetEnterpriseApi.Infrastructure.Repositories.EntityFramework
             if (refreshToken != null)
             {
                 refreshToken.IsRevoked = true;
-                await _context.SaveChangesAsync();
             }
         }
     }

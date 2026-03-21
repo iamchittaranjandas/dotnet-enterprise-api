@@ -26,7 +26,7 @@ namespace DotnetEnterpriseApi.Application.Common.Behaviours
 
             var elapsedMilliseconds = _timer.ElapsedMilliseconds;
 
-            if (elapsedMilliseconds > 500)
+            if (elapsedMilliseconds > 200)
             {
                 var requestName = typeof(TRequest).Name;
 

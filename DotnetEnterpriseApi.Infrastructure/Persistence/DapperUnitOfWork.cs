@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using DotnetEnterpriseApi.Application.Common.Interfaces;
 
 namespace DotnetEnterpriseApi.Infrastructure.Persistence
@@ -16,16 +17,24 @@ namespace DotnetEnterpriseApi.Infrastructure.Persistence
 
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            // Dapper doesn't track changes - commits happen at transaction level
+            // Dapper/ADO.NET commits happen immediately per query — no change tracking
             return Task.FromResult(0);
         }
 
-        public Task BeginTransactionAsync(CancellationToken cancellationToken = default)
+        public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
         {
             _connection = _connectionFactory.CreateConnection();
-            _connection.Open();
+
+            if (_connection is DbConnection dbConnection)
+            {
+                await dbConnection.OpenAsync(cancellationToken);
+            }
+            else
+            {
+                _connection.Open();
+            }
+
             _transaction = _connection.BeginTransaction();
-            return Task.CompletedTask;
         }
 
         public Task CommitTransactionAsync(CancellationToken cancellationToken = default)

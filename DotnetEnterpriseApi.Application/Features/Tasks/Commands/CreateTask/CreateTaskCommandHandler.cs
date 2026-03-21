@@ -1,4 +1,5 @@
 using AutoMapper;
+using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Common.Models;
 using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Domain.Entities;
@@ -9,11 +10,13 @@ namespace DotnetEnterpriseApi.Application.Features.Tasks.Commands.CreateTask
     public class CreateTaskCommandHandler : IRequestHandler<CreateTaskCommand, Result<TaskResponse>>
     {
         private readonly ITaskRepository _taskRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
 
-        public CreateTaskCommandHandler(ITaskRepository taskRepository, IMapper mapper)
+        public CreateTaskCommandHandler(ITaskRepository taskRepository, IUnitOfWork unitOfWork, IMapper mapper)
         {
             _taskRepository = taskRepository;
+            _unitOfWork = unitOfWork;
             _mapper = mapper;
         }
 
@@ -28,6 +31,7 @@ namespace DotnetEnterpriseApi.Application.Features.Tasks.Commands.CreateTask
             };
 
             var created = await _taskRepository.AddAsync(task);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var response = _mapper.Map<TaskResponse>(created);
 

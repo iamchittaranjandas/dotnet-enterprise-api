@@ -1,4 +1,4 @@
-﻿using DotnetEnterpriseApi.Application.Features.Tasks.Commands.CreateTask;
+using DotnetEnterpriseApi.Application.Features.Tasks.Commands.CreateTask;
 using DotnetEnterpriseApi.Application.Features.Tasks.Commands.DeleteTask;
 using DotnetEnterpriseApi.Application.Features.Tasks.Commands.UpdateTask;
 using DotnetEnterpriseApi.Application.Features.Tasks.Queries.GetAllTasks;
@@ -6,6 +6,7 @@ using DotnetEnterpriseApi.Application.Features.Tasks.Queries.GetTaskById;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace DotnetEnterpriseApi.Api.Controllers
 {
@@ -15,13 +16,16 @@ namespace DotnetEnterpriseApi.Api.Controllers
     public class TasksController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly IOutputCacheStore _cacheStore;
 
-        public TasksController(IMediator mediator)
+        public TasksController(IMediator mediator, IOutputCacheStore cacheStore)
         {
             _mediator = mediator;
+            _cacheStore = cacheStore;
         }
 
         [HttpGet]
+        [OutputCache(PolicyName = "tasks")]
         public async Task<IActionResult> GetAllTasks([FromQuery] int? cursor = null, [FromQuery] int pageSize = 10)
         {
             var query = new GetAllTasksQuery { Cursor = cursor, PageSize = pageSize };
@@ -36,6 +40,7 @@ namespace DotnetEnterpriseApi.Api.Controllers
         }
 
         [HttpGet("{id}")]
+        [OutputCache(PolicyName = "tasks")]
         public async Task<IActionResult> GetTaskById(int id)
         {
             var query = new GetTaskByIdQuery { Id = id };
@@ -59,6 +64,8 @@ namespace DotnetEnterpriseApi.Api.Controllers
                 return BadRequest(new { message = result.Message, errors = result.Errors });
             }
 
+            await _cacheStore.EvictByTagAsync("tasks", default);
+
             return CreatedAtAction(nameof(GetTaskById), new { id = result.Data?.Id }, result);
         }
 
@@ -72,6 +79,8 @@ namespace DotnetEnterpriseApi.Api.Controllers
             {
                 return BadRequest(new { message = result.Message, errors = result.Errors });
             }
+
+            await _cacheStore.EvictByTagAsync("tasks", default);
 
             return Ok(result);
         }
@@ -87,6 +96,8 @@ namespace DotnetEnterpriseApi.Api.Controllers
             {
                 return NotFound(new { message = result.Message, errors = result.Errors });
             }
+
+            await _cacheStore.EvictByTagAsync("tasks", default);
 
             return Ok(result);
         }

@@ -1,3 +1,4 @@
+using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Common.Models;
 using DotnetEnterpriseApi.Application.Interfaces;
 using MediatR;
@@ -14,15 +15,18 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Login
     {
         private readonly IUserRepository _userRepository;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IConfiguration _configuration;
 
         public LoginCommandHandler(
             IUserRepository userRepository,
             IRefreshTokenRepository refreshTokenRepository,
+            IUnitOfWork unitOfWork,
             IConfiguration configuration)
         {
             _userRepository = userRepository;
             _refreshTokenRepository = refreshTokenRepository;
+            _unitOfWork = unitOfWork;
             _configuration = configuration;
         }
 
@@ -50,6 +54,8 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Login
                 ExpiresAt = DateTime.UtcNow.AddDays(7),
                 CreatedAt = DateTime.UtcNow
             });
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var response = new LoginResponse
             {

@@ -17,9 +17,11 @@ namespace DotnetEnterpriseApi.Api.Extensions
 
         public static WebApplication UseCustomMiddlewares(this WebApplication app)
         {
-            app.UseHttpsRedirection();
-            app.UseMiddleware<RequestLoggingMiddleware>();
             app.UseMiddleware<ExceptionMiddleware>();
+            app.UseResponseCompression();
+            app.UseHttpsRedirection();
+            app.UseCors("Default");
+            app.UseMiddleware<RequestLoggingMiddleware>();
 
             app.UseRateLimiter();
             app.UseOutputCache();

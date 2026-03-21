@@ -21,6 +21,8 @@ namespace DotnetEnterpriseApi.Api
             // ── API Features ──
             builder.Services.AddSwaggerDocumentation();
             builder.Services.AddJwtAuthentication(builder.Configuration);
+            builder.Services.AddCorsPolicy(builder.Configuration);
+            builder.Services.AddResponseCompressionConfiguration();
             builder.Services.AddApiVersioningConfiguration();
             builder.Services.AddHealthChecksConfiguration(builder.Configuration);
             builder.Services.AddRateLimiting();
@@ -35,10 +37,7 @@ namespace DotnetEnterpriseApi.Api
             {
                 using var scope = app.Services.CreateScope();
                 var dbContext = scope.ServiceProvider.GetService<DotnetEnterpriseApi.Infrastructure.Data.AppDbContext>();
-                if (dbContext != null)
-                {
-                    dbContext.Database.EnsureCreated();
-                }
+                dbContext?.Database.EnsureCreated();
             }
 
             // ── Middleware Pipeline ──

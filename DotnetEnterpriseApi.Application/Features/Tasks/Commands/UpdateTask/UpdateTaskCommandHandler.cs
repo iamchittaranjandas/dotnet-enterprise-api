@@ -1,4 +1,5 @@
 using AutoMapper;
+using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Common.Models;
 using DotnetEnterpriseApi.Application.Features.Tasks.Commands.CreateTask;
 using DotnetEnterpriseApi.Application.Interfaces;
@@ -9,11 +10,13 @@ namespace DotnetEnterpriseApi.Application.Features.Tasks.Commands.UpdateTask
     public class UpdateTaskCommandHandler : IRequestHandler<UpdateTaskCommand, Result<TaskResponse>>
     {
         private readonly ITaskRepository _taskRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
 
-        public UpdateTaskCommandHandler(ITaskRepository taskRepository, IMapper mapper)
+        public UpdateTaskCommandHandler(ITaskRepository taskRepository, IUnitOfWork unitOfWork, IMapper mapper)
         {
             _taskRepository = taskRepository;
+            _unitOfWork = unitOfWork;
             _mapper = mapper;
         }
 
@@ -31,6 +34,7 @@ namespace DotnetEnterpriseApi.Application.Features.Tasks.Commands.UpdateTask
             task.IsCompleted = request.IsCompleted;
 
             await _taskRepository.UpdateAsync(task);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var response = _mapper.Map<TaskResponse>(task);
 

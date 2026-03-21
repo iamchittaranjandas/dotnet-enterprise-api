@@ -1,4 +1,5 @@
 using AutoMapper;
+using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Common.Models;
 using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Domain.Entities;
@@ -9,11 +10,13 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Regis
     public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<RegisterResponse>>
     {
         private readonly IUserRepository _userRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
 
-        public RegisterCommandHandler(IUserRepository userRepository, IMapper mapper)
+        public RegisterCommandHandler(IUserRepository userRepository, IUnitOfWork unitOfWork, IMapper mapper)
         {
             _userRepository = userRepository;
+            _unitOfWork = unitOfWork;
             _mapper = mapper;
         }
 
@@ -37,6 +40,7 @@ namespace DotnetEnterpriseApi.Application.Features.Authentication.Commands.Regis
             };
 
             var created = await _userRepository.AddAsync(user);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var response = _mapper.Map<RegisterResponse>(created);
             response.Message = "User registered successfully";
