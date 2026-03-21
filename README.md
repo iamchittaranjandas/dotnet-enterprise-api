@@ -58,7 +58,9 @@ This project serves as a **comprehensive template** for building enterprise-grad
 - **OpenTelemetry** - Distributed tracing and metrics instrumentation
 - **Output Caching** - Response caching with tag-based invalidation
 - **Refresh Tokens** - Secure token rotation for long-lived sessions
-- **Pagination** - Built-in `pageNumber` and `pageSize` query parameters
+- **Cursor-Based Pagination** - Efficient cursor pagination with `cursor` and `pageSize` query parameters
+- **AutoMapper** - Centralized object mapping with mapping profiles
+- **Extension Methods** - Clean `Program.cs` with service and middleware extension methods
 
 ---
 
@@ -73,7 +75,7 @@ This project serves as a **comprehensive template** for building enterprise-grad
 - **SQL Server**
 - **JWT Bearer Authentication** + **Refresh Tokens**
 - **BCrypt.Net** - Secure password hashing
-- **Mapster** (7.4.0) - Object mapping
+- **AutoMapper** (16.1.1) - Object mapping with profiles
 - **Swagger/OpenAPI** - API documentation
 - **OpenTelemetry** (1.15.0) - Distributed tracing & metrics
 - **Asp.Versioning** (8.1.1) - API version management
@@ -88,14 +90,15 @@ This project serves as a **comprehensive template** for building enterprise-grad
 - HTTP request/response handling
 - Controllers (thin, delegating to MediatR)
 - Middleware (Exception handling, Request logging)
-- Dependency injection configuration
+- Extension methods for clean service registration and middleware pipeline
 - Authentication & Authorization setup
 - Swagger configuration
 
 **Key Files:**
 - `Controllers/` - API endpoints using MediatR
+- `Extensions/` - Service registration and middleware pipeline extension methods
 - `Middleware/` - Custom middleware components
-- `Program.cs` - Application startup and DI configuration
+- `Program.cs` - Clean application startup using extension methods
 
 ### 2. **Application Layer** (`DotnetEnterpriseApi.Application`)
 **Responsibilities:**
@@ -114,7 +117,8 @@ Application/
 │   ├── Behaviours/          # MediatR pipeline behaviors
 │   ├── Exceptions/          # Custom exceptions
 │   ├── Interfaces/          # Application contracts
-│   └── Models/              # Result pattern, common models
+│   ├── Mappings/            # AutoMapper profiles
+│   └── Models/              # Result pattern, cursor pagination models
 ├── Features/
 │   ├── Authentication/
 │   │   ├── Commands/        # Register, Login commands
@@ -395,18 +399,33 @@ Login now returns both a JWT access token and a refresh token:
 
 Use `POST /api/auth/refresh-token` with the refresh token to get new tokens without re-entering credentials. Refresh tokens expire in 7 days and are single-use (revoked after each rotation).
 
-### Pagination
+### Cursor-Based Pagination
 
-All list endpoints support pagination via query parameters:
+All list endpoints use cursor-based pagination for consistent, performant scrolling through large datasets:
 
 ```
-GET /api/tasks?pageNumber=1&pageSize=10
+# First page
+GET /api/tasks?pageSize=10
+
+# Next page (use nextCursor from previous response)
+GET /api/tasks?cursor=5&pageSize=10
 ```
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `pageNumber` | 1 | Page number (1-based) |
+| `cursor` | `null` | ID of the last item from the previous page (omit for first page) |
 | `pageSize` | 10 | Items per page |
+
+**Response:**
+```json
+{
+  "items": [...],
+  "nextCursor": 5,
+  "hasNextPage": true
+}
+```
+
+**Why cursor-based?** Unlike offset pagination (`OFFSET...FETCH`), cursor pagination avoids skipping rows when data is inserted or deleted between requests, and performs consistently regardless of page depth.
 
 ---
 
@@ -535,9 +554,9 @@ Authorization: Bearer {your_jwt_token}
 
 ### Task Management Endpoints (Requires Authentication)
 
-**GET** `/api/tasks?pageNumber=1&pageSize=10`
-- Get all tasks with pagination
-- Response: `Result<List<TaskResponse>>`
+**GET** `/api/tasks?cursor={id}&pageSize=10`
+- Get all tasks with cursor-based pagination
+- Response: `Result<CursorPagedResult<TaskResponse>>`
 
 **GET** `/api/tasks/{id}`
 - Get task by ID
