@@ -192,6 +192,12 @@ namespace DotnetEnterpriseApi.Api.Extensions
                     break;
             }
 
+            var redisConnection = configuration.GetConnectionString("Redis");
+            if (!string.IsNullOrWhiteSpace(redisConnection))
+            {
+                healthChecks.AddRedis(redisConnection, name: "redis", tags: new[] { "cache", "redis" });
+            }
+
             return services;
         }
 
@@ -240,8 +246,32 @@ namespace DotnetEnterpriseApi.Api.Extensions
             return services;
         }
 
-        public static IServiceCollection AddOutputCaching(this IServiceCollection services)
+        public static IServiceCollection AddRedisCaching(this IServiceCollection services, IConfiguration configuration)
         {
+            var redisConnection = configuration.GetConnectionString("Redis");
+            var useRedis = !string.IsNullOrWhiteSpace(redisConnection);
+
+            if (useRedis)
+            {
+                services.AddStackExchangeRedisCache(options =>
+                {
+                    options.Configuration = redisConnection;
+                    options.InstanceName = configuration["Redis:InstanceName"] ?? "DotnetEnterpriseApi:";
+                });
+            }
+            else
+            {
+                services.AddDistributedMemoryCache();
+            }
+
+            return services;
+        }
+
+        public static IServiceCollection AddOutputCaching(this IServiceCollection services, IConfiguration configuration)
+        {
+            var redisConnection = configuration.GetConnectionString("Redis");
+            var useRedis = !string.IsNullOrWhiteSpace(redisConnection);
+
             services.AddOutputCache(options =>
             {
                 options.AddBasePolicy(policy => policy.Expire(TimeSpan.FromSeconds(30)));
@@ -249,6 +279,15 @@ namespace DotnetEnterpriseApi.Api.Extensions
                 options.AddPolicy("tasks", policy =>
                     policy.Expire(TimeSpan.FromSeconds(60)).Tag("tasks"));
             });
+
+            if (useRedis)
+            {
+                services.AddStackExchangeRedisOutputCache(options =>
+                {
+                    options.Configuration = redisConnection;
+                    options.InstanceName = configuration["Redis:InstanceName"] ?? "DotnetEnterpriseApi:";
+                });
+            }
 
             return services;
         }

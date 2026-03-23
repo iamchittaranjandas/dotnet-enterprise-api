@@ -26,7 +26,8 @@ namespace DotnetEnterpriseApi.Api
             builder.Services.AddApiVersioningConfiguration();
             builder.Services.AddHealthChecksConfiguration(builder.Configuration);
             builder.Services.AddRateLimiting();
-            builder.Services.AddOutputCaching();
+            builder.Services.AddRedisCaching(builder.Configuration);
+            builder.Services.AddOutputCaching(builder.Configuration);
             builder.Services.AddOpenTelemetryConfiguration();
 
             var app = builder.Build();
