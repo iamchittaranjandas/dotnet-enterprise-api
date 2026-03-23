@@ -57,6 +57,7 @@ This project serves as a **comprehensive template** for building enterprise-grad
 - **API Versioning** - Query string and header-based version control
 - **OpenTelemetry** - Distributed tracing and metrics instrumentation
 - **Output Caching** - Response caching with tag-based invalidation
+- **Redis Caching** - Optional Redis-backed distributed cache and output cache (falls back to in-memory)
 - **Refresh Tokens** - Secure token rotation for long-lived sessions
 - **Cursor-Based Pagination** - Efficient cursor pagination with `cursor` and `pageSize` query parameters
 - **AutoMapper** - Centralized object mapping with mapping profiles
@@ -82,7 +83,10 @@ This project serves as a **comprehensive template** for building enterprise-grad
 - **Swagger/OpenAPI** - API documentation
 - **OpenTelemetry** (1.15.0) - Distributed tracing & metrics
 - **Asp.Versioning** (8.1.1) - API version management
-- **Health Checks** - Database-specific health monitoring (SQL Server, PostgreSQL, MySQL, Oracle)
+- **Health Checks** - Database-specific health monitoring (SQL Server, PostgreSQL, MySQL, Oracle, Redis)
+- **StackExchange.Redis** - Distributed caching and output cache backing
+- **Microsoft.Extensions.Caching.StackExchangeRedis** (10.0.5) - IDistributedCache with Redis
+- **Microsoft.AspNetCore.OutputCaching.StackExchangeRedis** (10.0.5) - Output cache Redis store
 
 ---
 
@@ -376,6 +380,11 @@ Returns JSON with API and database health status:
       "name": "sqlserver",
       "status": "Healthy",
       "duration": "184ms"
+    },
+    {
+      "name": "redis",
+      "status": "Healthy",
+      "duration": "12ms"
     }
   ],
   "totalDuration": "188ms"
@@ -419,6 +428,58 @@ Built-in distributed tracing and metrics:
 
 To switch to a production exporter, replace `AddConsoleExporter()` in `Program.cs` with your preferred exporter package.
 
+### Redis Caching (Optional)
+
+Redis support is **auto-enabled** when a Redis connection string is configured. When not configured, the app uses in-memory caching — no code changes needed.
+
+**Configuration in `appsettings.json`:**
+```json
+{
+  "ConnectionStrings": {
+    "Redis": "localhost:6379"
+  },
+  "Redis": {
+    "InstanceName": "DotnetEnterpriseApi:"
+  }
+}
+```
+
+| `ConnectionStrings:Redis` | Behavior |
+|---|---|
+| Empty `""` or missing | In-memory cache (default, no Redis needed) |
+| `"localhost:6379"` | Redis for distributed cache + output cache |
+| `"your-cache.redis.cache.windows.net:6380,password=key,ssl=True"` | Azure Redis Cache |
+
+**What Redis enables:**
+
+| Feature | Without Redis | With Redis |
+|---------|---|---|
+| `IDistributedCache` | In-memory (per instance) | Shared across instances |
+| Output Cache | In-memory (lost on restart) | Persists across restarts |
+| Health Check `/health` | DB only | DB + Redis |
+
+**Usage — inject `IDistributedCache` anywhere:**
+```csharp
+public class MyHandler
+{
+    private readonly IDistributedCache _cache;
+
+    public MyHandler(IDistributedCache cache) => _cache = cache;
+
+    public async Task Handle()
+    {
+        // Set cache
+        await _cache.SetStringAsync("key", "value", new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+        });
+
+        // Get cache
+        var value = await _cache.GetStringAsync("key");
+    }
+}
+```
+
 ### Output Caching
 
 Response caching reduces database load:
@@ -428,7 +489,7 @@ Response caching reduces database load:
 | Default | 30 seconds | Applied to all endpoints |
 | `tasks` | 60 seconds | Tag-based, applied to task listing |
 
-Cache is automatically invalidated when data changes.
+Cache is automatically invalidated when data changes. When Redis is configured, output cache is backed by Redis and survives app restarts.
 
 ### Refresh Tokens
 
@@ -634,6 +695,7 @@ Authorization: Bearer {your_jwt_token}
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [SQL Server](https://www.microsoft.com/sql-server) or SQL Server LocalDB
 - [Visual Studio 2022](https://visualstudio.microsoft.com/) or [VS Code](https://code.visualstudio.com/)
+- [Redis](https://redis.io/download/) (optional — for distributed caching)
 
 ### Installation
 
