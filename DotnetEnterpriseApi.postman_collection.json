@@ -1,0 +1,738 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		"name": "DotNet Enterprise API",
+		"description": "Complete API collection for DotNet Enterprise API with test data.\n\n**Setup:** Run \"Register\" then \"Login\" first. The login response token is automatically saved to the `accessToken` variable for authenticated requests.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://localhost:7279",
+			"type": "string"
+		},
+		{
+			"key": "accessToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "refreshToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "taskId",
+			"value": "1",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["health"]
+						},
+						"description": "Check API health status. No authentication required."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Register",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Registration is successful', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.true;",
+									"    pm.expect(jsonData.data.userName).to.eql('testuser');",
+									"    pm.expect(jsonData.data.email).to.eql('testuser@example.com');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userName\": \"testuser\",\n  \"email\": \"testuser@example.com\",\n  \"password\": \"Test@12345\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Register a new user account."
+					},
+					"response": []
+				},
+				{
+					"name": "Register (Admin)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Admin registration is successful', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userName\": \"adminuser\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin@12345\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "register"]
+						},
+						"description": "Register an admin user account."
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Login is successful and token is saved', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.true;",
+									"    pm.expect(jsonData.data.token).to.be.a('string').and.not.empty;",
+									"    pm.expect(jsonData.data.refreshToken).to.be.a('string').and.not.empty;",
+									"",
+									"    pm.collectionVariables.set('accessToken', jsonData.data.token);",
+									"    pm.collectionVariables.set('refreshToken', jsonData.data.refreshToken);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"Test@12345\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Login and get JWT token. Token is automatically saved to collection variables."
+					},
+					"response": []
+				},
+				{
+					"name": "Login (Invalid Credentials)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Login fails with invalid credentials', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"wrong@example.com\",\n  \"password\": \"WrongPassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Test login with invalid credentials — should fail."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Token refreshed successfully', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.true;",
+									"    pm.expect(jsonData.data.token).to.be.a('string').and.not.empty;",
+									"",
+									"    pm.collectionVariables.set('accessToken', jsonData.data.token);",
+									"    pm.collectionVariables.set('refreshToken', jsonData.data.refreshToken);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"token\": \"{{refreshToken}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/refresh-token",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "refresh-token"]
+						},
+						"description": "Refresh an expired JWT token using the refresh token."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tasks",
+			"item": [
+				{
+					"name": "Create Task",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Task created successfully', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.true;",
+									"    pm.expect(jsonData.data.title).to.eql('Implement user authentication');",
+									"    pm.expect(jsonData.data.isCompleted).to.be.false;",
+									"",
+									"    pm.collectionVariables.set('taskId', jsonData.data.id);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Implement user authentication\",\n  \"description\": \"Add JWT-based authentication with login, register, and refresh token endpoints.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks"]
+						},
+						"description": "Create a new task. Requires authentication. The created task ID is saved for subsequent requests."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Task (Second)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Second task created', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Set up CI/CD pipeline\",\n  \"description\": \"Configure GitHub Actions for automated build, test, and deployment to Azure.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks"]
+						},
+						"description": "Create a second task for testing pagination."
+					},
+					"response": []
+				},
+				{
+					"name": "Create Task (Third)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Write unit tests\",\n  \"description\": \"Add comprehensive unit tests for all service and repository layers using xUnit.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks"]
+						},
+						"description": "Create a third task for testing pagination."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Tasks",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns paginated task list', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.true;",
+									"    pm.expect(jsonData.data.items).to.be.an('array');",
+									"    pm.expect(jsonData.data).to.have.property('hasNextPage');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks?pageSize=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks"],
+							"query": [
+								{
+									"key": "pageSize",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Get all tasks with cursor-based pagination. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Tasks (With Cursor)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns next page of tasks', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.true;",
+									"    pm.expect(jsonData.data.items).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks?cursor=1&pageSize=2",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks"],
+							"query": [
+								{
+									"key": "cursor",
+									"value": "1"
+								},
+								{
+									"key": "pageSize",
+									"value": "2"
+								}
+							]
+						},
+						"description": "Get tasks with cursor-based pagination — fetches the next page after cursor ID 1."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Task By ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns the correct task', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.true;",
+									"    pm.expect(jsonData.data.id).to.eql(parseInt(pm.collectionVariables.get('taskId')));",
+									"    pm.expect(jsonData.data).to.have.property('title');",
+									"    pm.expect(jsonData.data).to.have.property('description');",
+									"    pm.expect(jsonData.data).to.have.property('isCompleted');",
+									"    pm.expect(jsonData.data).to.have.property('createdDate');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks/{{taskId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks", "{{taskId}}"]
+						},
+						"description": "Get a specific task by ID. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Task By ID (Not Found)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Task not found returns failure', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.false;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks/99999",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks", "99999"]
+						},
+						"description": "Attempt to get a non-existent task — should return failure."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Task",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Task updated successfully', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.true;",
+									"    pm.expect(jsonData.data.title).to.eql('Implement user authentication (completed)');",
+									"    pm.expect(jsonData.data.isCompleted).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Implement user authentication (completed)\",\n  \"description\": \"JWT-based authentication with login, register, and refresh token endpoints — all done.\",\n  \"isCompleted\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks/{{taskId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks", "{{taskId}}"]
+						},
+						"description": "Update an existing task. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Task",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Task deleted successfully', function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.isSuccess).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks/{{taskId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks", "{{taskId}}"]
+						},
+						"description": "Delete a task. Requires authentication AND Admin role."
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Tasks (Unauthorized)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Returns 401 without token', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/tasks",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "tasks"]
+						},
+						"description": "Attempt to access tasks without authentication — should return 401."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

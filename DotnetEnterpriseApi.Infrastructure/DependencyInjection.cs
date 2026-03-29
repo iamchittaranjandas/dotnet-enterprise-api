@@ -39,7 +39,7 @@ namespace DotnetEnterpriseApi.Infrastructure
             var databaseProvider = configuration["DatabaseProvider"] ?? "SqlServer";
             var connectionString = configuration.GetConnectionString("DefaultConnection")!;
 
-            services.AddDbContextPool<AppDbContext>(options =>
+            services.AddDbContext<AppDbContext>(options =>
             {
                 switch (databaseProvider.ToLowerInvariant())
                 {
