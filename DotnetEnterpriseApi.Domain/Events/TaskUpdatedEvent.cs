@@ -2,7 +2,7 @@ using DotnetEnterpriseApi.Domain.Common;
 
 namespace DotnetEnterpriseApi.Domain.Events
 {
-    public class TaskCreatedEvent : IDomainEvent
+    public class TaskUpdatedEvent : IDomainEvent
     {
         public int TaskId { get; }
         public string Title { get; }
@@ -10,7 +10,7 @@ namespace DotnetEnterpriseApi.Domain.Events
         public bool IsCompleted { get; }
         public DateTime OccurredOn { get; }
 
-        public TaskCreatedEvent(int taskId, string title, string description, bool isCompleted)
+        public TaskUpdatedEvent(int taskId, string title, string description, bool isCompleted)
         {
             TaskId = taskId;
             Title = title;

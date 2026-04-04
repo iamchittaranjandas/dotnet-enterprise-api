@@ -29,6 +29,7 @@ namespace DotnetEnterpriseApi.Api
             builder.Services.AddRedisCaching(builder.Configuration);
             builder.Services.AddOutputCaching(builder.Configuration);
             builder.Services.AddOpenTelemetryConfiguration();
+            builder.Services.AddAgentServices(builder.Configuration);
 
             var app = builder.Build();
 

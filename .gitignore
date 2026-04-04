@@ -3,13 +3,25 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# ── Secrets & API keys — never commit real credentials ───────────────────────
+.env
+.env.*
+!.env.example
+# ASP.NET environment-specific overrides (may contain real connection strings / keys)
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Staging.json
+appsettings.Local.json
+# .NET user secrets (stored outside the repo, but guard against accidental copies)
+secrets.json
+# ─────────────────────────────────────────────────────────────────────────────
+
 # User-specific files
 *.rsuser
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
-*.env
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

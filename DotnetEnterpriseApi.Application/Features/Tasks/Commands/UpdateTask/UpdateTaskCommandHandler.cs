@@ -3,6 +3,7 @@ using DotnetEnterpriseApi.Application.Common.Interfaces;
 using DotnetEnterpriseApi.Application.Common.Models;
 using DotnetEnterpriseApi.Application.Features.Tasks.Commands.CreateTask;
 using DotnetEnterpriseApi.Application.Interfaces;
+using DotnetEnterpriseApi.Domain.Events;
 using MediatR;
 
 namespace DotnetEnterpriseApi.Application.Features.Tasks.Commands.UpdateTask
@@ -12,12 +13,14 @@ namespace DotnetEnterpriseApi.Application.Features.Tasks.Commands.UpdateTask
         private readonly ITaskRepository _taskRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IMediator _mediator;
 
-        public UpdateTaskCommandHandler(ITaskRepository taskRepository, IUnitOfWork unitOfWork, IMapper mapper)
+        public UpdateTaskCommandHandler(ITaskRepository taskRepository, IUnitOfWork unitOfWork, IMapper mapper, IMediator mediator)
         {
             _taskRepository = taskRepository;
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _mediator = mediator;
         }
 
         public async Task<Result<TaskResponse>> Handle(UpdateTaskCommand request, CancellationToken cancellationToken)
@@ -35,6 +38,10 @@ namespace DotnetEnterpriseApi.Application.Features.Tasks.Commands.UpdateTask
 
             await _taskRepository.UpdateAsync(task);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await _mediator.Publish(
+                new TaskUpdatedEvent(task.Id, task.Title, task.Description, task.IsCompleted),
+                cancellationToken);
 
             var response = _mapper.Map<TaskResponse>(task);
 

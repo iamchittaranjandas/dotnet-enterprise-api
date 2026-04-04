@@ -1,4 +1,5 @@
 using DotnetEnterpriseApi.Application.Common.Behaviours;
+using DotnetEnterpriseApi.Application.Features.Tasks.AgentTools;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,10 @@ namespace DotnetEnterpriseApi.Application
             services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
             services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehaviour<,>));
             services.AddTransient(typeof(IPipelineBehavior<,>), typeof(PerformanceBehaviour<,>));
+
+            services.AddScoped<TaskAgentTools>();
+            services.AddScoped<QueryAgentTools>();
+            services.AddScoped<MutationAgentTools>();
 
             return services;
         }

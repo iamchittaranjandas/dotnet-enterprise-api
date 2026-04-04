@@ -1,6 +1,8 @@
+using DotnetEnterpriseApi.Api.AI;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.Extensions.AI;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using OpenTelemetry.Metrics;
@@ -23,6 +25,13 @@ namespace DotnetEnterpriseApi.Api.Extensions
                     Title = ".NET Enterprise API",
                     Version = "v1",
                     Description = "A production-ready enterprise REST API with CQRS, MediatR, and SOLID principles"
+                });
+
+                options.SwaggerDoc("v2", new OpenApiInfo
+                {
+                    Title = ".NET Enterprise API — AI Module",
+                    Version = "v2",
+                    Description = "AI-powered endpoints: single agent (RAG + tool-calling), multi-agent orchestration (intent routing), and workflow automation engine (Llm / Tool / Condition steps)"
                 });
 
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -288,6 +297,17 @@ namespace DotnetEnterpriseApi.Api.Extensions
                     options.InstanceName = configuration["Redis:InstanceName"] ?? "DotnetEnterpriseApi:";
                 });
             }
+
+            return services;
+        }
+
+        public static IServiceCollection AddAgentServices(this IServiceCollection services, IConfiguration configuration)
+        {
+            services.AddSingleton<IChatClient>(_ =>
+                AiProviderFactory.CreateChatClient(configuration));
+
+            services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(_ =>
+                AiProviderFactory.CreateEmbeddingGenerator(configuration));
 
             return services;
         }

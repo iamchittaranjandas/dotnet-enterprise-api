@@ -5,6 +5,7 @@ using DotnetEnterpriseApi.Tests.Common;
 using DotnetEnterpriseApi.Application.Interfaces;
 using DotnetEnterpriseApi.Domain.Entities;
 using FluentAssertions;
+using MediatR;
 using Moq;
 
 namespace DotnetEnterpriseApi.Tests.Features.Tasks.Commands
@@ -14,6 +15,7 @@ namespace DotnetEnterpriseApi.Tests.Features.Tasks.Commands
         private readonly Mock<ITaskRepository> _taskRepositoryMock;
         private readonly Mock<IUnitOfWork> _unitOfWorkMock;
         private readonly IMapper _mapper;
+        private readonly Mock<IMediator> _mediatorMock;
         private readonly CreateTaskCommandHandler _handler;
 
         public CreateTaskCommandHandlerTests()
@@ -21,7 +23,8 @@ namespace DotnetEnterpriseApi.Tests.Features.Tasks.Commands
             _taskRepositoryMock = new Mock<ITaskRepository>();
             _unitOfWorkMock = new Mock<IUnitOfWork>();
             _mapper = TestMapperFactory.Create();
-            _handler = new CreateTaskCommandHandler(_taskRepositoryMock.Object, _unitOfWorkMock.Object, _mapper);
+            _mediatorMock = new Mock<IMediator>();
+            _handler = new CreateTaskCommandHandler(_taskRepositoryMock.Object, _unitOfWorkMock.Object, _mapper, _mediatorMock.Object);
         }
 
         [Fact]

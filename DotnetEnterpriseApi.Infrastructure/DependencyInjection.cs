@@ -6,6 +6,8 @@ using DotnetEnterpriseApi.Infrastructure.Persistence;
 using DotnetEnterpriseApi.Infrastructure.Repositories.Dapper;
 using DotnetEnterpriseApi.Infrastructure.Repositories.Ado;
 using DotnetEnterpriseApi.Infrastructure.Repositories.EntityFramework;
+using DotnetEnterpriseApi.Infrastructure.Repositories.VectorStore;
+using DotnetEnterpriseApi.Infrastructure.Workflow;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +18,19 @@ namespace DotnetEnterpriseApi.Infrastructure
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
-            var dataProvider = configuration["DataProvider"] ?? "EntityFramework";
+            var dataProvider     = configuration["DataProvider"]    ?? "EntityFramework";
+            var databaseProvider = configuration["DatabaseProvider"] ?? "SqlServer";
+            var isPostgres       = dataProvider.Equals("EntityFramework", StringComparison.OrdinalIgnoreCase)
+                                   && databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase);
+
+            // RAG service: pgvector when PostgreSQL+EF, in-memory otherwise
+            if (isPostgres)
+                services.AddSingleton<ITaskRagService, PgVectorRagService>();
+            else
+                services.AddSingleton<ITaskRagService, TaskRagService>();
+
+            services.AddHostedService<RagRehydrationService>();
+            services.AddSingleton<IWorkflowEngine, WorkflowEngine>();
 
             if (dataProvider.Equals("Dapper", StringComparison.OrdinalIgnoreCase))
             {
@@ -39,7 +53,9 @@ namespace DotnetEnterpriseApi.Infrastructure
             var databaseProvider = configuration["DatabaseProvider"] ?? "SqlServer";
             var connectionString = configuration.GetConnectionString("DefaultConnection")!;
 
-            services.AddDbContext<AppDbContext>(options =>
+            // Single registration — AddDbContextFactory registers both the factory (singleton)
+            // and IDbContextOptions. The scoped AppDbContext is resolved from the factory below.
+            services.AddDbContextFactory<AppDbContext>(options =>
             {
                 switch (databaseProvider.ToLowerInvariant())
                 {
@@ -48,6 +64,7 @@ namespace DotnetEnterpriseApi.Infrastructure
                         {
                             b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
                             b.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorCodesToAdd: null);
+                            b.UseVector();
                         });
                         break;
                     case "mysql":
@@ -59,9 +76,7 @@ namespace DotnetEnterpriseApi.Infrastructure
                         break;
                     case "oracle":
                         options.UseOracle(connectionString, b =>
-                        {
-                            b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName);
-                        });
+                            b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName));
                         break;
                     default:
                         options.UseSqlServer(connectionString, b =>
@@ -72,6 +87,10 @@ namespace DotnetEnterpriseApi.Infrastructure
                         break;
                 }
             });
+
+            // Resolve the scoped AppDbContext from the factory for the regular request pipeline
+            services.AddScoped<AppDbContext>(provider =>
+                provider.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
 
             services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<AppDbContext>());
             services.AddScoped<IUnitOfWork, UnitOfWork>();
